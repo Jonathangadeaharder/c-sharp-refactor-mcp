@@ -57,6 +57,7 @@ ehthumbs.db
 
 # Logs
 *.log
+!build-test.log  # Exception: CI log file is tracked
 logs/
 
 # Temporary files

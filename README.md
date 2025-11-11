@@ -287,6 +287,52 @@ Please use the roslyn-refactor-server tools to:
 - Multiple **write** operations (rename, extract): Serialized per solution
 - Multiple solutions: Can be processed concurrently
 
+## Continuous Integration
+
+The project includes a GitHub Actions workflow that:
+- ✅ Builds the project
+- ✅ Runs all tests
+- ✅ Captures output to `build-test.log`
+- ✅ **Amends the log to your commit** (auto-commits on push)
+
+### Viewing CI Results
+
+After pushing to your branch:
+
+```bash
+# Pull the amended commit (force required)
+git pull --force
+
+# View the CI log
+cat build-test.log
+```
+
+Or view `build-test.log` directly on GitHub in your commit.
+
+### Why This Pattern?
+
+Traditional CI logs live in the GitHub Actions UI and expire. This workflow stores the log **in the commit itself**:
+
+- ✅ Permanent record (doesn't expire)
+- ✅ Offline access (clone repo, get logs)
+- ✅ Version controlled (tied to specific commits)
+- ✅ No dashboard needed (just `cat build-test.log`)
+
+### Running Tests Locally
+
+```bash
+# Run all tests
+dotnet test
+
+# Run tests with detailed output
+dotnet test --verbosity detailed
+
+# Run tests with coverage (requires additional tools)
+dotnet test /p:CollectCoverage=true
+```
+
+📖 **Full CI documentation**: See [CI-WORKFLOW.md](CI-WORKFLOW.md) for details on the amendment process, troubleshooting, and best practices.
+
 ## Troubleshooting
 
 ### "Failed to register MSBuild"
@@ -382,7 +428,7 @@ This server implements the architecture described in "A New Architecture for AI-
 
 ## License
 
-[Add your license here]
+MIT License - See [LICENSE](LICENSE) for details.
 
 ## Support
 
