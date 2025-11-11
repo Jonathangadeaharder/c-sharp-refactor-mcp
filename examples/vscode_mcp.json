@@ -1,0 +1,13 @@
+{
+  "servers": {
+    "roslyn-refactor-server": {
+      "type": "stdio",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "/absolute/path/to/RoslynRefactorServer.csproj"
+      ]
+    }
+  }
+}

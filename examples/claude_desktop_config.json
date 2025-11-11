@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "roslyn-refactor-server": {
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "/absolute/path/to/RoslynRefactorServer.csproj"
+      ],
+      "env": {
+        "DOTNET_CLI_TELEMETRY_OPTOUT": "1"
+      }
+    }
+  }
+}
