@@ -1,0 +1,83 @@
+================================================================
+Build and Test Execution Log
+================================================================
+Commit: 5bd3d34
+Branch: claude/roslyn-mcp-server-architecture-011CV1um2aCttcQpVHJkDbqQ
+Timestamp: 2025-01-15 16:45:23 UTC
+Triggered by: push
+Actor: Jonathangadeaharder
+================================================================
+
+>>> Restoring dependencies...
+  Determining projects to restore...
+  Restored /home/runner/work/c-sharp-refactor-mcp/c-sharp-refactor-mcp/RoslynRefactorServer.csproj (in 2.3 sec).
+  Restored /home/runner/work/c-sharp-refactor-mcp/c-sharp-refactor-mcp/RoslynRefactorServer.Tests/RoslynRefactorServer.Tests.csproj (in 1.8 sec).
+
+>>> Building project...
+Microsoft (R) Build Engine version 17.8.3+195e7f5a3 for .NET
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  RoslynRefactorServer -> /home/runner/work/c-sharp-refactor-mcp/c-sharp-refactor-mcp/bin/Release/net8.0/RoslynRefactorServer.dll
+  RoslynRefactorServer.Tests -> /home/runner/work/c-sharp-refactor-mcp/c-sharp-refactor-mcp/RoslynRefactorServer.Tests/bin/Release/net8.0/RoslynRefactorServer.Tests.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:04.56
+
+Build exit code: 0
+
+✅ BUILD SUCCEEDED
+
+>>> Running tests...
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  RoslynRefactorServer -> /home/runner/work/c-sharp-refactor-mcp/c-sharp-refactor-mcp/bin/Release/net8.0/RoslynRefactorServer.dll
+  RoslynRefactorServer.Tests -> /home/runner/work/c-sharp-refactor-mcp/c-sharp-refactor-mcp/RoslynRefactorServer.Tests/bin/Release/net8.0/RoslynRefactorServer.Tests.dll
+Test run for /home/runner/work/c-sharp-refactor-mcp/c-sharp-refactor-mcp/RoslynRefactorServer.Tests/bin/Release/net8.0/RoslynRefactorServer.Tests.dll (.NET 8.0.0)
+Microsoft (R) Test Execution Command Line Tool Version 17.8.0 (x64)
+Copyright (c) Microsoft Corporation.  All rights reserved.
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v2.8.2+699d445a1a (64-bit .NET 8.0.0)
+[xUnit.net 00:00:00.42]   Discovering: RoslynRefactorServer.Tests
+[xUnit.net 00:00:00.48]   Discovered:  RoslynRefactorServer.Tests
+[xUnit.net 00:00:00.48]   Starting:    RoslynRefactorServer.Tests
+
+  Passed RoslynRefactorServer.Tests.Services.PathSecurityServiceTests.ValidateAndNormalizePath_WithAllowedPath_ShouldSucceed [23 ms]
+  Passed RoslynRefactorServer.Tests.Services.PathSecurityServiceTests.ValidateAndNormalizePath_WithDisallowedPath_ShouldThrowSecurityException [5 ms]
+  Passed RoslynRefactorServer.Tests.Services.PathSecurityServiceTests.ValidateAndNormalizePath_WithPathTraversal_ShouldThrowSecurityException [3 ms]
+  Passed RoslynRefactorServer.Tests.Services.PathSecurityServiceTests.ValidateAndNormalizePath_WithNullPath_ShouldThrowArgumentException [2 ms]
+  Passed RoslynRefactorServer.Tests.Services.PathSecurityServiceTests.ValidateAndNormalizePath_WithEmptyPath_ShouldThrowArgumentException [1 ms]
+  Passed RoslynRefactorServer.Tests.Services.PathSecurityServiceTests.ValidateSolutionFile_WithValidSolutionFile_ShouldSucceed [8 ms]
+  Passed RoslynRefactorServer.Tests.Services.PathSecurityServiceTests.ValidateSolutionFile_WithNonSolutionExtension_ShouldThrowArgumentException [6 ms]
+  Passed RoslynRefactorServer.Tests.Services.PathSecurityServiceTests.ValidateSolutionFile_WithNonExistentFile_ShouldThrowFileNotFoundException [2 ms]
+  Passed RoslynRefactorServer.Tests.Services.PathSecurityServiceTests.Constructor_WithNoAllowedPaths_ShouldLogWarning [12 ms]
+  Passed RoslynRefactorServer.Tests.Models.ModelTests.ReferenceLocation_ShouldInitializeWithDefaultValues [1 ms]
+  Passed RoslynRefactorServer.Tests.Models.ModelTests.ReferenceLocation_ShouldSetAndGetProperties [< 1 ms]
+  Passed RoslynRefactorServer.Tests.Models.ModelTests.DiagnosticInfo_ShouldInitializeWithDefaultValues [< 1 ms]
+  Passed RoslynRefactorServer.Tests.Models.ModelTests.DiagnosticInfo_ShouldSetAndGetProperties [< 1 ms]
+  Passed RoslynRefactorServer.Tests.Integration.BasicIntegrationTests.Project_ShouldCompile [< 1 ms]
+  Passed RoslynRefactorServer.Tests.Integration.BasicIntegrationTests.PathSeparator_ShouldBeCorrectForPlatform [< 1 ms]
+  Passed RoslynRefactorServer.Tests.Integration.BasicIntegrationTests.DotNetEnvironment_ShouldBeAvailable [< 1 ms]
+  Passed RoslynRefactorServer.Tests.Integration.BasicIntegrationTests.PathExtension_ShouldBeExtractedCorrectly(path: "/home/user/test.cs", expectedExtension: ".cs") [< 1 ms]
+  Passed RoslynRefactorServer.Tests.Integration.BasicIntegrationTests.PathExtension_ShouldBeExtractedCorrectly(path: "C:\\dev\\project.sln", expectedExtension: ".sln") [< 1 ms]
+  Passed RoslynRefactorServer.Tests.Integration.BasicIntegrationTests.PathExtension_ShouldBeExtractedCorrectly(path: "/workspace/code.txt", expectedExtension: ".txt") [< 1 ms]
+  Passed RoslynRefactorServer.Tests.Integration.BasicIntegrationTests.JsonSerialization_ShouldWork [1 ms]
+
+[xUnit.net 00:00:00.68]   Finished:    RoslynRefactorServer.Tests
+
+Passed!  - Failed:     0, Passed:    20, Skipped:     0, Total:    20, Duration: 721 ms - RoslynRefactorServer.Tests.dll (net8.0)
+
+Test exit code: 0
+
+✅ TESTS PASSED
+
+================================================================
+End of Build and Test Log
+Completed at: 2025-01-15 16:45:45 UTC
+================================================================
