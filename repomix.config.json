@@ -1,0 +1,36 @@
+{
+  "output": {
+    "filePath": "repomix-output.txt",
+    "style": "xml",
+    "headerText": "Roslyn-MCP Server - C# Refactoring Server\nSafe, Roslyn-powered refactoring operations via MCP",
+    "instructionFilePath": "",
+    "removeComments": false,
+    "removeEmptyLines": false,
+    "topFilesLength": 5,
+    "showLineNumbers": true
+  },
+  "include": [
+    "**/*.cs",
+    "**/*.csproj",
+    "**/*.sln",
+    "**/*.json",
+    "**/*.md",
+    "**/*.yml",
+    "**/*.yaml",
+    "**/*.sh"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      "bin/**",
+      "obj/**",
+      "build-test.log*",
+      "repomix-output.txt",
+      "repomix-metadata.json"
+    ]
+  },
+  "security": {
+    "enableSecurityCheck": true
+  }
+}

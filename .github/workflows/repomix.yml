@@ -1,0 +1,116 @@
+name: Repomix Codebase Bundle
+
+on:
+  push:
+    branches:
+      - '**'  # Run on all branches
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:  # Allow manual triggering
+
+permissions:
+  contents: read
+
+jobs:
+  repomix-bundle:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history for complete codebase context
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Run Repomix
+      run: |
+        echo "================================================================"
+        echo "Repomix Codebase Bundle Generation"
+        echo "================================================================"
+        echo "Commit: ${{ github.sha }}"
+        echo "Branch: ${{ github.ref_name }}"
+        echo "Timestamp: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+        echo "================================================================"
+        echo ""
+
+        # Install and run repomix using npx
+        npx repomix@latest --output repomix-output.txt
+
+        echo ""
+        echo "✅ Repomix bundle generated successfully"
+
+        # Show bundle stats
+        if [ -f repomix-output.txt ]; then
+          LINES=$(wc -l < repomix-output.txt)
+          SIZE=$(du -h repomix-output.txt | cut -f1)
+          echo "📊 Bundle Statistics:"
+          echo "  Lines: $LINES"
+          echo "  Size: $SIZE"
+        fi
+
+    - name: Generate bundle metadata
+      run: |
+        cat > repomix-metadata.json << EOF
+        {
+          "commit": "${{ github.sha }}",
+          "branch": "${{ github.ref_name }}",
+          "timestamp": "$(date -u '+%Y-%m-%d %H:%M:%S UTC')",
+          "triggered_by": "${{ github.event_name }}",
+          "actor": "${{ github.actor }}",
+          "repository": "${{ github.repository }}"
+        }
+        EOF
+
+        echo "📄 Metadata generated:"
+        cat repomix-metadata.json
+
+    - name: Upload Repomix bundle as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: repomix-bundle-${{ github.sha }}
+        path: |
+          repomix-output.txt
+          repomix-metadata.json
+        retention-days: 90
+        compression-level: 9
+
+    - name: Upload Repomix bundle (latest)
+      uses: actions/upload-artifact@v4
+      with:
+        name: repomix-bundle-latest
+        path: |
+          repomix-output.txt
+          repomix-metadata.json
+        retention-days: 30
+        compression-level: 9
+
+    - name: Workflow Summary
+      if: always()
+      run: |
+        echo "================================================"
+        echo "🎯 Repomix Bundle Workflow Completed!"
+        echo "================================================"
+        if [ -f repomix-output.txt ]; then
+          LINES=$(wc -l < repomix-output.txt)
+          SIZE=$(du -h repomix-output.txt | cut -f1)
+          echo "✅ Bundle generated successfully"
+          echo ""
+          echo "📊 Bundle Statistics:"
+          echo "  Lines: $LINES"
+          echo "  Size: $SIZE"
+          echo ""
+          echo "📦 Artifacts uploaded:"
+          echo "  1. repomix-bundle-${{ github.sha }} (90 day retention)"
+          echo "  2. repomix-bundle-latest (30 day retention)"
+          echo ""
+          echo "To download:"
+          echo "  Visit: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        else
+          echo "❌ Bundle generation failed"
+        fi
+        echo "================================================"

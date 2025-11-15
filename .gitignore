@@ -69,3 +69,7 @@ logs/
 appsettings.Development.json
 appsettings.*.json
 !appsettings.json
+
+# Repomix outputs
+repomix-output.txt
+repomix-metadata.json
