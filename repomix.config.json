@@ -1,7 +1,7 @@
 {
   "output": {
     "filePath": "repomix-output.txt",
-    "style": "xml",
+    "style": "plain",
     "headerText": "Roslyn-MCP Server - C# Refactoring Server\nSafe, Roslyn-powered refactoring operations via MCP",
     "instructionFilePath": "",
     "removeComments": false,

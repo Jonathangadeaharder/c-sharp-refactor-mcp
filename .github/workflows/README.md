@@ -222,11 +222,11 @@ This workflow (`repomix.yml`) automatically generates a bundled version of the e
 
 #### 📦 Codebase Bundling
 
-Repomix combines your entire codebase into a single, well-formatted text file that includes:
+Repomix combines your entire codebase into a single, well-formatted plain text file that includes:
 - All source code files
 - Project structure and hierarchy
 - File metadata and statistics
-- Syntax highlighting and formatting
+- Clear file separation markers
 - Configurable inclusion/exclusion patterns
 
 #### 🎯 Multiple Artifact Versions
@@ -260,7 +260,7 @@ Configures repomix behavior:
 ```json
 {
   "output": {
-    "style": "xml",
+    "style": "plain",
     "showLineNumbers": true,
     "removeComments": false
   },
@@ -316,7 +316,7 @@ The repomix bundle is useful for:
 ### Bundle Contents
 
 The generated `repomix-output.txt` includes:
-- XML-formatted codebase structure
+- Plain text formatted codebase structure
 - All source files with line numbers
 - File paths and metadata
 - Project hierarchy
@@ -358,7 +358,7 @@ Edit `repomix.config.json`:
 ```json
 {
   "output": {
-    "style": "markdown"  // or "plain", "xml"
+    "style": "xml"  // or "markdown", "plain" (default)
   }
 }
 ```
