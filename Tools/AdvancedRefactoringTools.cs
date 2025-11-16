@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Editing;
 using Microsoft.CodeAnalysis.FindSymbols;
 using Microsoft.CodeAnalysis.Text;
+using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 using RoslynRefactorServer.Services;
 using System.ComponentModel;
