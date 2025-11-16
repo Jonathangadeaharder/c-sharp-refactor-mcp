@@ -3,7 +3,9 @@ name: Repomix Codebase Bundle
 on:
   push:
     branches:
-      - '**'  # Run on all branches
+      - main
+      - develop
+      - 'claude/**'  # Support Claude Code branches
   pull_request:
     branches:
       - main
@@ -25,7 +27,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '20'
+        node-version: '22'  # Current LTS version
 
     - name: Run Repomix
       run: |
@@ -38,33 +40,47 @@ jobs:
         echo "================================================================"
         echo ""
 
-        # Install and run repomix using npx
-        npx repomix@latest --output repomix-output.txt
+        # Install and run repomix with pinned version for reproducibility
+        # Configuration is read from repomix.config.json
+        if npx repomix@1.0.0; then
+          echo ""
+          echo "✅ Repomix bundle generated successfully"
 
-        echo ""
-        echo "✅ Repomix bundle generated successfully"
+          # Verify output file was created
+          if [ ! -f repomix-output.txt ]; then
+            echo "❌ Error: repomix-output.txt was not generated"
+            exit 1
+          fi
 
-        # Show bundle stats
-        if [ -f repomix-output.txt ]; then
+          # Show bundle stats
           LINES=$(wc -l < repomix-output.txt)
           SIZE=$(du -h repomix-output.txt | cut -f1)
           echo "📊 Bundle Statistics:"
           echo "  Lines: $LINES"
           echo "  Size: $SIZE"
+        else
+          echo "❌ Repomix execution failed"
+          exit 1
         fi
 
     - name: Generate bundle metadata
       run: |
-        cat > repomix-metadata.json << EOF
-        {
-          "commit": "${{ github.sha }}",
-          "branch": "${{ github.ref_name }}",
-          "timestamp": "$(date -u '+%Y-%m-%d %H:%M:%S UTC')",
-          "triggered_by": "${{ github.event_name }}",
-          "actor": "${{ github.actor }}",
-          "repository": "${{ github.repository }}"
-        }
-        EOF
+        # Use jq for proper JSON escaping to handle special characters
+        jq -n \
+          --arg commit "${{ github.sha }}" \
+          --arg branch "${{ github.ref_name }}" \
+          --arg timestamp "$(date -u '+%Y-%m-%d %H:%M:%S UTC')" \
+          --arg triggered_by "${{ github.event_name }}" \
+          --arg actor "${{ github.actor }}" \
+          --arg repository "${{ github.repository }}" \
+          '{
+            commit: $commit,
+            branch: $branch,
+            timestamp: $timestamp,
+            triggered_by: $triggered_by,
+            actor: $actor,
+            repository: $repository
+          }' > repomix-metadata.json
 
         echo "📄 Metadata generated:"
         cat repomix-metadata.json
@@ -77,7 +93,7 @@ jobs:
           repomix-output.txt
           repomix-metadata.json
         retention-days: 90
-        compression-level: 9
+        compression-level: 6  # Balanced compression for text files
 
     - name: Upload Repomix bundle (latest)
       uses: actions/upload-artifact@v4
@@ -87,7 +103,7 @@ jobs:
           repomix-output.txt
           repomix-metadata.json
         retention-days: 30
-        compression-level: 9
+        compression-level: 6  # Balanced compression for text files
 
     - name: Workflow Summary
       if: always()
@@ -105,12 +121,13 @@ jobs:
           echo "  Size: $SIZE"
           echo ""
           echo "📦 Artifacts uploaded:"
-          echo "  1. repomix-bundle-${{ github.sha }} (90 day retention)"
-          echo "  2. repomix-bundle-latest (30 day retention)"
+          echo "  1. repomix-bundle-${{ github.sha }} (90-day retention)"
+          echo "  2. repomix-bundle-latest (30-day retention)"
           echo ""
           echo "To download:"
           echo "  Visit: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
         else
           echo "❌ Bundle generation failed"
+          exit 1
         fi
         echo "================================================"

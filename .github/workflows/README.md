@@ -232,8 +232,8 @@ Repomix combines your entire codebase into a single, well-formatted plain text f
 #### 🎯 Multiple Artifact Versions
 
 Two artifacts are uploaded for each run:
-1. **`repomix-bundle-{commit-sha}`** - Commit-specific bundle (90 day retention)
-2. **`repomix-bundle-latest`** - Always the latest bundle (30 day retention)
+1. **`repomix-bundle-{commit-sha}`** - Commit-specific bundle (90-day retention)
+2. **`repomix-bundle-latest`** - Always the latest bundle (30-day retention)
 
 #### 📊 Bundle Statistics
 
@@ -274,7 +274,7 @@ Configures repomix behavior:
 
 ### Workflow Triggers
 
-- **Push**: Any branch
+- **Push**: `main`, `develop`, and `claude/**` branches
 - **Pull Request**: Targeting `main` branch
 - **Manual**: Via `workflow_dispatch` (Actions tab → Run workflow)
 
@@ -345,10 +345,12 @@ The `repomix-metadata.json` includes:
 
 Typical workflow execution:
 - Checkout: ~5-10 seconds
-- Node.js setup: ~10-15 seconds
+- Node.js setup: ~10-15 seconds (cached after first run)
 - Repomix execution: ~5-30 seconds (depends on codebase size)
 - Artifact upload: ~5-10 seconds
 - **Total**: Usually under 1 minute
+
+**Note**: The workflow uses Node.js v22 (current LTS) and repomix v1.0.0 (pinned for reproducibility).
 
 ### Customization
 
@@ -366,7 +368,7 @@ Edit `repomix.config.json`:
 #### Exclude Additional Files
 
 Add to `.repomixignore`:
-```
+```gitignore
 # Custom exclusions
 *.secret
 private/
@@ -379,7 +381,7 @@ Edit `repomix.yml`:
 - name: Upload Repomix bundle as artifact
   uses: actions/upload-artifact@v4
   with:
-    retention-days: 180  # Change from 90
+    retention-days: 180  # Change from 90 (default is 90-day retention)
 ```
 
 ### Troubleshooting
