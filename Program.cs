@@ -62,7 +62,7 @@ builder.Services.AddMcpServer(options =>
         Version = "1.0.0"
     };
 })
-.ExposeAssemblyTools(); // Automatically discovers [McpTools] classes
+.WithToolsFromAssembly(); // Automatically discovers [McpTools] classes
 
 var app = builder.Build();
 
