@@ -75,7 +75,8 @@ public class CSharpLanguageProvider : ILanguageProvider
 
             foreach (var project in solution.Projects)
             {
-                var compilation = await project.GetCompilationAsync();
+                // OPTIMIZATION: Use cached compilation when available for faster diagnostics
+                var compilation = await _workspaceService.GetOrCacheCompilationAsync(project);
                 if (compilation == null) continue;
 
                 var diagnostics = compilation.GetDiagnostics()
