@@ -1,7 +1,7 @@
 # structurelint configuration - Roslyn Refactor MCP Server
 # COMPREHENSIVE configuration using ALL available features
 # Enforces best practices for C# .NET 8.0 MCP server architecture
-# Documentation: https://github.com/structurelint/structurelint
+# Documentation: https://github.com/Jonathangadeaharder/structurelint
 
 root: true
 
@@ -201,7 +201,9 @@ rules:
       - "**/*.pem"
       - "**/*.pfx"
       - "**/secrets.json"
-      - "**/appsettings.*.json"  # Allow only base appsettings.json
+      # Environment-specific appsettings files (e.g., appsettings.Development.json, appsettings.Production.json) are allowed.
+      # Only block local override files, which may contain secrets.
+      - "**/appsettings.*.local.json"  # Block local override files; use User Secrets or environment variables for sensitive data
       - "**/.env"
       - "**/*.secret"
 
@@ -219,8 +221,11 @@ rules:
 
   regex-match:
     # Test files must end with Test or Tests
-    "**/*Tests.cs|**/*Test.cs":
-      pattern: "^[A-Z][a-zA-Z0-9]*Tests?\\.cs$"
+    "**/*Tests.cs":
+      pattern: "^[A-Z][a-zA-Z0-9]*Tests\\.cs$"
+      severity: warning
+    "**/*Test.cs":
+      pattern: "^[A-Z][a-zA-Z0-9]*Test\\.cs$"
       severity: warning
 
   # ===========================================================================
@@ -419,8 +424,9 @@ overrides:
         severity: warning
       max-cognitive-complexity:
         max: 20
-      disallow-orphaned-files: 0
-      disallow-unused-exports: 0
+      # Disabled rules for test samples
+      # disallow-orphaned-files: false
+      # disallow-unused-exports: false
 
   # GitHub workflows
   - path: ".github/**"
@@ -439,7 +445,8 @@ overrides:
       max-files-in-dir:
         max: 20
         severity: info
-      disallow-orphaned-files: 0  # Docs may not be imported
+      # Disabled rules for documentation
+      # disallow-orphaned-files: false  # Docs may not be imported
 
   # Scripts directory
   - path: "scripts/**"
@@ -447,7 +454,8 @@ overrides:
       max-files-in-dir:
         max: 15
         severity: warning
-      disallow-orphaned-files: 0  # Scripts are standalone
+      # Disabled rules for scripts
+      # disallow-orphaned-files: false  # Scripts are standalone
 
   # Examples directory
   - path: "examples/**"
@@ -459,6 +467,7 @@ overrides:
         "**/*.cs":
           pattern: "PascalCase|kebab-case"
           severity: warning
-      disallow-orphaned-files: 0
-      disallow-unused-exports: 0
-      max-cognitive-complexity: 0  # Disable for examples
+      # Disabled rules for examples
+      # disallow-orphaned-files: false
+      # disallow-unused-exports: false
+      # max-cognitive-complexity: false  # Disable for examples

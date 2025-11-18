@@ -102,9 +102,9 @@ Main config file: `.structurelint.yml`
 
 ### Current Limits
 
-- Max directory depth: **6**
-- Max files per directory: **25** (general), **30** (tests), **50** (test projects)
-- Max subdirectories: **12**
+- Max directory depth: **4**
+- Max files per directory: **15** (general), **20** (tests), **25** (test projects)
+- Max subdirectories: **8**
 
 ### Excluded Directories
 
