@@ -1,0 +1,473 @@
+# structurelint configuration - Roslyn Refactor MCP Server
+# COMPREHENSIVE configuration using ALL available features
+# Enforces best practices for C# .NET 8.0 MCP server architecture
+# Documentation: https://github.com/Jonathangadeaharder/structurelint
+
+root: true
+
+exclude:
+  - .git/**
+  - "**/bin/**"
+  - "**/obj/**"
+  - "**/packages/**"
+  - "**/node_modules/**"
+  - "**/.vs/**"
+  - testdata/**
+
+# ===========================================================================
+# Phase 2: Dead Code Detection - Entry Points
+# ===========================================================================
+
+entrypoints:
+  - "Program.cs"              # Main entry point
+  - "**/*Tests.cs"            # Test entry points
+  - "**/*Test.cs"
+  - "**/Integration/**/*.cs"  # Integration tests
+
+rules:
+  # ===========================================================================
+  # Phase 0: Filesystem Structure - STRICT LIMITS
+  # ===========================================================================
+
+  # Maximum directory nesting depth (detected: 4, using strict limit)
+  max-depth:
+    max: 4
+    severity: error
+
+  # Maximum files per directory (detected: 20, enforcing strictly)
+  max-files-in-dir:
+    max: 15  # Stricter than detected to force organization
+    severity: error
+
+  # Maximum subdirectories per directory
+  max-subdirs:
+    max: 8  # Stricter than detected (10)
+    severity: error
+
+  # ===========================================================================
+  # Code Complexity Metrics - Evidence-Based Limits
+  # ===========================================================================
+
+  # Cognitive Complexity - Superior to Cyclomatic Complexity
+  # Research shows r=0.54 correlation with comprehension time
+  # Penalizes nesting (exponential cognitive load)
+  max-cognitive-complexity:
+    max: 15  # Industry best practice for maintainability
+    file-patterns:
+      - "**/*.cs"
+    exemptions:
+      - "**/*Tests.cs"  # Test files can be more complex
+      - "**/*Test.cs"
+    severity: error
+
+  # Halstead Effort - Captures algorithmic complexity
+  # rs=0.901 correlation with EEG-measured cognitive load
+  # Tracks operators, operands, vocabulary size
+  max-halstead-effort:
+    max: 120000  # C# with strong typing adds operator count
+    file-patterns:
+      - "**/*.cs"
+    exemptions:
+      - "**/*Tests.cs"
+      - "**/*Test.cs"
+    severity: warning
+
+  # ===========================================================================
+  # Naming Conventions - C# Best Practices
+  # ===========================================================================
+
+  naming-convention:
+    # C# source files MUST be PascalCase
+    "**/*.cs":
+      pattern: "PascalCase"
+      severity: error
+
+    # C# project files MUST be PascalCase
+    "**/*.csproj":
+      pattern: "PascalCase"
+      severity: error
+
+    # Solution files MUST be PascalCase
+    "**/*.sln":
+      pattern: "PascalCase"
+      severity: error
+
+    # Configuration files should be kebab-case or lowercase
+    "**/*.json":
+      pattern: "kebab-case|lowercase"
+      severity: warning
+
+    # YAML configuration files should be kebab-case
+    "**/*.yml":
+      pattern: "kebab-case"
+      severity: warning
+
+    "**/*.yaml":
+      pattern: "kebab-case"
+      severity: warning
+
+    # Documentation files - encourage uppercase for standard docs
+    "README.md":
+      pattern: "UPPERCASE"
+      severity: warning
+
+    "LICENSE":
+      pattern: "UPPERCASE"
+      severity: warning
+
+    "CONTRIBUTING.md":
+      pattern: "UPPERCASE"
+      severity: warning
+
+    # Shell scripts should be kebab-case
+    "**/*.sh":
+      pattern: "kebab-case"
+      severity: warning
+
+  # ===========================================================================
+  # Required Files
+  # ===========================================================================
+
+  file-existence:
+    # Essential documentation
+    "README.md":
+      exists: 1
+      severity: error
+
+    "LICENSE":
+      exists: 1
+      severity: error
+
+    # Project files
+    "*.sln":
+      exists: "1"  # Exactly one solution file
+      severity: error
+
+    "*.csproj":
+      exists: "1+"  # At least one project file
+      severity: error
+
+    # Configuration
+    "appsettings.json":
+      exists: 1
+      severity: error
+
+    # .gitignore for version control hygiene
+    ".gitignore":
+      exists: 1
+      severity: error
+
+    # CI/CD workflow required
+    ".github/workflows/*.yml":
+      exists: "1+"
+      severity: error
+
+  # ===========================================================================
+  # Disallowed Patterns - Security & Hygiene
+  # ===========================================================================
+
+  disallowed-patterns:
+    severity: error
+    patterns:
+      # Build artifacts
+      - "**/bin/**/*.dll"
+      - "**/bin/**/*.exe"
+      - "**/obj/**/*.cs"
+      - "**/obj/**"
+
+      # IDE-specific files
+      - "**/.vs/**"
+      - "**/.vscode/*.log"
+      - "**/.idea/**"
+      - "**/*.user"
+      - "**/*.suo"
+
+      # Temporary files
+      - "**/*.tmp"
+      - "**/*.temp"
+      - "**/*~"
+      - "**/*.swp"
+      - "**/*.swo"
+      - "**/*.bak"
+      - "**/*.old"
+
+      # OS-specific files
+      - "**/Thumbs.db"
+      - "**/.DS_Store"
+      - "**/desktop.ini"
+
+      # Secrets and sensitive data
+      - "**/*.key"
+      - "**/*.pem"
+      - "**/*.pfx"
+      - "**/secrets.json"
+      # Environment-specific appsettings files (e.g., appsettings.Development.json, appsettings.Production.json) are allowed.
+      # Only block local override files, which may contain secrets.
+      - "**/appsettings.*.local.json"  # Block local override files; use User Secrets or environment variables for sensitive data
+      - "**/.env"
+      - "**/*.secret"
+
+      # Package management artifacts
+      - "**/packages/**/*.dll"
+      - "**/node_modules/**"
+
+      # Log files (except example logs)
+      - "**/*.log"
+      - "!build-test.log.example"
+
+  # ===========================================================================
+  # Regex Patterns - Additional Validation
+  # ===========================================================================
+
+  regex-match:
+    # Test files must end with Test or Tests
+    "**/*Tests.cs":
+      pattern: "^[A-Z][a-zA-Z0-9]*Tests\\.cs$"
+      severity: warning
+    "**/*Test.cs":
+      pattern: "^[A-Z][a-zA-Z0-9]*Test\\.cs$"
+      severity: warning
+
+  # ===========================================================================
+  # Phase 2: Dead Code Detection
+  # ===========================================================================
+
+  # Detect files never imported/referenced by other files
+  # NOTE: Disabled for C# - DI, MCP protocol, and test discovery aren't detected
+  # disallow-orphaned-files:
+  #   severity: info
+  #   exemptions:
+  #     - "Program.cs"
+  #     - "Models/**"
+  #     - "Tools/**"
+  #     - "Services/**"
+
+  # Detect exported symbols that are never used
+  # NOTE: Disabled for C# - DI and MCP protocol usage isn't detected by static analysis
+  # disallow-unused-exports:
+  #   severity: info
+  #   exemptions:
+  #     - "Models/**"
+  #     - "Tools/**"
+  #     - "Services/**"
+
+  # ===========================================================================
+  # Phase 3: Test Validation
+  # ===========================================================================
+
+  # Enforce test adjacency - every source file should have tests
+  # NOTE: C# typically uses separate test projects, not adjacent files
+  # This is more informational - tests are in RoslynRefactorServer.Tests/
+  test-adjacency:
+    pattern: "separate"  # C# uses separate test projects
+    file-patterns:
+      - "**/*.cs"
+    exemptions:
+      - "**/*Tests.cs"        # Don't test the tests
+      - "**/*Test.cs"
+      - "Program.cs"          # Entry point tested via integration
+      - "Models/**/*.cs"      # Simple DTOs tested via integration
+      - "Services/**"         # Tests in separate project
+      - "Tools/**"            # Tests in separate project
+      - "examples/**"
+      - "test-project/**"
+    severity: info  # Informational only for C# projects
+
+  # Test location validation
+  test-location:
+    integration-test-dir: "RoslynRefactorServer.Tests/Integration"
+    allow-adjacent: true
+    require-test-suffix: true
+    exemptions:
+      - "testdata/**"
+      - "test-project/**"
+    severity: warning
+
+  # ===========================================================================
+  # Phase 1: Architectural Layers - MCP Server Architecture
+  # ===========================================================================
+
+  # Enable architectural boundary enforcement
+  enforce-layer-boundaries: true
+
+  # ===========================================================================
+  # Phase 4: File Content Templates
+  # ===========================================================================
+
+  # File content templates - disabled for now (Phase 4 may not be fully implemented)
+  # file-content:
+  #   templates:
+  #     "README.md":
+  #       required-sections:
+  #         - "## Overview"
+  #         - "## Features"
+  #       severity: info
+
+  # ===========================================================================
+  # Phase 8: GitHub Workflow Enforcement
+  # ===========================================================================
+
+  # GitHub Workflows enforcement - disabled for now (Phase 8 may not be fully implemented)
+  # github-workflows:
+  #   require-quality: true
+  #   require-security: true
+  #   require-tests: true
+  #   severity: warning
+
+  # ===========================================================================
+  # Linter Configuration Enforcement
+  # ===========================================================================
+
+  # Linter configuration - disabled for now (may not be fully implemented)
+  # linter-config:
+  #   require-csharp: true
+  #   severity: warning
+
+  # ===========================================================================
+  # Clone Detection Configuration
+  # ===========================================================================
+
+  clone-detection:
+    # Minimum size for clone detection
+    min-tokens: 30   # Higher than default (20) for C# verbosity
+    min-lines: 5     # Higher than default (3)
+
+    # Only report cross-file clones
+    cross-file-only: true
+
+    # Exclude test files from clone detection
+    exclude-patterns:
+      - "**/*Tests.cs"
+      - "**/*Test.cs"
+      - "test-project/**"
+      - "examples/**"
+
+    severity: info  # Informational for now
+
+# ===========================================================================
+# Phase 1: Architectural Layers - MCP Server Architecture
+# ===========================================================================
+
+layers:
+  # Models layer - Pure data (no dependencies)
+  - name: "models"
+    path: "Models/**"
+    description: "Data models (DTOs, domain objects)"
+    can-import: []
+    cannot-import:
+      - "Services/**"
+      - "Tools/**"
+
+  # Services layer - Core services (can use Models only)
+  - name: "services"
+    path: "Services/**"
+    description: "Core services (Roslyn, PathSecurity)"
+    can-import:
+      - "Models/**"
+    cannot-import:
+      - "Tools/**"
+
+  # Tools layer - MCP tool implementations (can use Services + Models)
+  - name: "tools"
+    path: "Tools/**"
+    description: "MCP tool implementations"
+    can-import:
+      - "Services/**"
+      - "Models/**"
+    cannot-import: []
+
+  # Tests - Can import anything
+  - name: "tests"
+    path: "RoslynRefactorServer.Tests/**"
+    description: "Test code"
+    can-import:
+      - "**"  # Tests can import anything
+
+# ===========================================================================
+# Directory-Specific Overrides
+# ===========================================================================
+
+overrides:
+  # Root directory - keep minimal
+  - path: "."
+    rules:
+      max-files-in-dir:
+        max: 12  # Root should have very few files
+        severity: error
+
+  # Test directories can have more files and complexity
+  - path: "RoslynRefactorServer.Tests/**"
+    rules:
+      max-files-in-dir:
+        max: 20
+        severity: warning
+      max-cognitive-complexity:
+        max: 25  # Tests can be more complex
+      max-halstead-effort:
+        max: 200000
+      naming-convention:
+        "**/*Tests.cs":
+          pattern: "PascalCase"
+          severity: error
+        "**/*Test.cs":
+          pattern: "PascalCase"
+          severity: error
+
+  # Test project has sample code
+  - path: "test-project/**"
+    rules:
+      max-files-in-dir:
+        max: 25
+        severity: warning
+      # More lenient for test samples
+      disallowed-patterns:
+        severity: warning
+      max-cognitive-complexity:
+        max: 20
+      # Disabled rules for test samples
+      # disallow-orphaned-files: false
+      # disallow-unused-exports: false
+
+  # GitHub workflows
+  - path: ".github/**"
+    rules:
+      max-files-in-dir:
+        max: 10
+        severity: warning
+      naming-convention:
+        "**/*.yml":
+          pattern: "kebab-case"
+          severity: error
+
+  # Documentation directory
+  - path: "docs/**"
+    rules:
+      max-files-in-dir:
+        max: 20
+        severity: info
+      # Disabled rules for documentation
+      # disallow-orphaned-files: false  # Docs may not be imported
+
+  # Scripts directory
+  - path: "scripts/**"
+    rules:
+      max-files-in-dir:
+        max: 15
+        severity: warning
+      # Disabled rules for scripts
+      # disallow-orphaned-files: false  # Scripts are standalone
+
+  # Examples directory
+  - path: "examples/**"
+    rules:
+      max-files-in-dir:
+        max: 15
+        severity: info
+      naming-convention:
+        "**/*.cs":
+          pattern: "PascalCase|kebab-case"
+          severity: warning
+      # Disabled rules for examples
+      # disallow-orphaned-files: false
+      # disallow-unused-exports: false
+      # max-cognitive-complexity: false  # Disable for examples

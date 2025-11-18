@@ -27,6 +27,11 @@ jobs:
       with:
         dotnet-version: '8.0.x'
 
+    - name: Setup Go (for structurelint)
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23.x'
+
     - name: Create log file header
       run: |
         echo "================================================================" > build-test.log
@@ -39,6 +44,30 @@ jobs:
         echo "Actor: ${{ github.actor }}" >> build-test.log
         echo "================================================================" >> build-test.log
         echo "" >> build-test.log
+
+    - name: Install structurelint
+      run: |
+        git clone https://github.com/Jonathangadeaharder/structurelint.git /tmp/structurelint
+        cd /tmp/structurelint
+        go build -o structurelint ./cmd/structurelint
+        sudo mv structurelint /usr/local/bin/
+        structurelint --version
+
+    - name: Run structurelint
+      run: |
+        echo ">>> Running structurelint..." | tee -a build-test.log
+        structurelint . 2>&1 | tee -a build-test.log
+        LINT_EXIT_CODE=${PIPESTATUS[0]}
+        echo "" >> build-test.log
+
+        if [ $LINT_EXIT_CODE -ne 0 ]; then
+          echo "❌ STRUCTURE LINT FAILED" >> build-test.log
+        else
+          echo "✅ STRUCTURE LINT PASSED" >> build-test.log
+        fi
+        echo "" >> build-test.log
+
+        exit $LINT_EXIT_CODE
 
     - name: Restore dependencies
       run: |

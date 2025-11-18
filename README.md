@@ -287,9 +287,23 @@ Please use the roslyn-refactor-server tools to:
 - Multiple **write** operations (rename, extract): Serialized per solution
 - Multiple solutions: Can be processed concurrently
 
+## Code Quality & Structure
+
+### Structurelint
+
+The project uses [structurelint](https://github.com/Jonathangadeaharder/structurelint) to enforce project structure and organization standards. This ensures consistent naming conventions, directory organization, and prevents common issues like committed build artifacts or secrets.
+
+**Running locally:**
+```bash
+structurelint .
+```
+
+See [docs/STRUCTURELINT.md](docs/STRUCTURELINT.md) for detailed configuration and usage.
+
 ## Continuous Integration
 
 The project includes a GitHub Actions workflow that:
+- ✅ Validates project structure with structurelint
 - ✅ Builds the project
 - ✅ Runs all tests
 - ✅ Captures output to `build-test.log`
@@ -331,7 +345,7 @@ dotnet test --verbosity detailed
 dotnet test /p:CollectCoverage=true
 ```
 
-📖 **Full CI documentation**: See [CI-WORKFLOW.md](CI-WORKFLOW.md) for details on the amendment process, troubleshooting, and best practices.
+📖 **Full CI documentation**: See [docs/CI-WORKFLOW.md](docs/CI-WORKFLOW.md) for details on the amendment process, troubleshooting, and best practices.
 
 ## Troubleshooting
 
