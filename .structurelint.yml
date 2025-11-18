@@ -1,132 +1,318 @@
+# structurelint configuration - Roslyn Refactor MCP Server
+# Enforces best practices for C# .NET 8.0 MCP server architecture
+# Documentation: https://github.com/structurelint/structurelint
+
 root: true
 
-# Structurelint configuration for Roslyn Refactor MCP Server
-# A C# project using .NET 8.0 with MCP protocol implementation
+exclude:
+  - .git/**
+  - "**/bin/**"
+  - "**/obj/**"
+  - "**/packages/**"
+  - "**/node_modules/**"
+  - "**/.vs/**"
+  - testdata/**
 
 rules:
-  # Metric Rules - Keep directories manageable
+  # ===========================================================================
+  # Phase 0: Filesystem Structure - STRICT LIMITS
+  # ===========================================================================
+
+  # Maximum directory nesting depth (detected: 4, using strict limit)
   max-depth:
-    max: 6
+    max: 4
     severity: error
 
+  # Maximum files per directory (detected: 20, enforcing strictly)
   max-files-in-dir:
-    max: 25
-    severity: warning
+    max: 15  # Stricter than detected to force organization
+    severity: error
 
+  # Maximum subdirectories per directory
   max-subdirs:
-    max: 12
-    severity: warning
+    max: 8  # Stricter than detected (10)
+    severity: error
 
-  # Naming Conventions - C# standards
+  # ===========================================================================
+  # Naming Conventions - C# Best Practices
+  # ===========================================================================
+
   naming-convention:
-    # C# source files should be PascalCase
-    "**/*.cs": "PascalCase"
+    # C# source files MUST be PascalCase
+    "**/*.cs":
+      pattern: "PascalCase"
+      severity: error
 
-    # Project files are PascalCase
-    "**/*.csproj": "PascalCase"
+    # C# project files MUST be PascalCase
+    "**/*.csproj":
+      pattern: "PascalCase"
+      severity: error
 
-    # Solution files are PascalCase
-    "**/*.sln": "PascalCase"
+    # Solution files MUST be PascalCase
+    "**/*.sln":
+      pattern: "PascalCase"
+      severity: error
 
-    # Configuration files typically kebab-case or lowercase
-    "**/*.json": "kebab-case|lowercase"
-    "**/*.yml": "kebab-case"
-    "**/*.yaml": "kebab-case"
+    # Configuration files should be kebab-case or lowercase
+    "**/*.json":
+      pattern: "kebab-case|lowercase"
+      severity: warning
 
-    # Markdown files can be kebab-case or UPPERCASE
-    "**/*.md": "kebab-case|UPPERCASE|PascalCase"
+    # YAML configuration files should be kebab-case
+    "**/*.yml":
+      pattern: "kebab-case"
+      severity: warning
 
-    # Shell scripts are kebab-case or snake_case
-    "**/*.sh": "kebab-case|snake_case"
+    "**/*.yaml":
+      pattern: "kebab-case"
+      severity: warning
 
-    # Directory naming - PascalCase for C# project directories
-    "Models/": "PascalCase"
-    "Services/": "PascalCase"
-    "Tools/": "PascalCase"
-    "RoslynRefactorServer.Tests/": "PascalCase"
+    # Documentation files - flexible but encourage uppercase for standard docs
+    "README.md":
+      pattern: "UPPERCASE"
+      severity: warning
 
-  # File Existence Rules
+    "LICENSE":
+      pattern: "UPPERCASE"
+      severity: warning
+
+    "CONTRIBUTING.md":
+      pattern: "UPPERCASE"
+      severity: warning
+
+    # Shell scripts should be kebab-case
+    "**/*.sh":
+      pattern: "kebab-case"
+      severity: warning
+
+  # ===========================================================================
+  # Required Files
+  # ===========================================================================
+
   file-existence:
-    # Root-level required files
-    "README.md": { exists: 1 }
-    "LICENSE": { exists: 1 }
-    ".gitignore": { exists: 1 }
+    # Essential documentation
+    "README.md":
+      exists: 1
+      severity: error
 
-    # Solution file required
-    "*.sln": { exists: "1+" }
+    "LICENSE":
+      exists: 1
+      severity: error
 
     # Project files
-    "*.csproj": { exists: "1+" }
+    "*.sln":
+      exists: "1"  # Exactly one solution file
+      severity: error
+
+    "*.csproj":
+      exists: "1+"  # At least one project file
+      severity: error
 
     # Configuration
-    "appsettings.json": { exists: 1 }
+    "appsettings.json":
+      exists: 1
+      severity: error
 
-    # CI/CD
-    ".github/workflows/*.yml": { exists: "1+" }
+    # .gitignore for version control hygiene
+    ".gitignore":
+      exists: 1
+      severity: error
 
-  # Disallowed Patterns - Prevent common issues
+    # CI/CD workflow required
+    ".github/workflows/*.yml":
+      exists: "1+"
+      severity: error
+
+  # ===========================================================================
+  # Disallowed Patterns - Security & Hygiene
+  # ===========================================================================
+
   disallowed-patterns:
     severity: error
     patterns:
-      # No compiled binaries in source control
-      - "**/bin/**"
+      # Build artifacts
+      - "**/bin/**/*.dll"
+      - "**/bin/**/*.exe"
+      - "**/obj/**/*.cs"
       - "**/obj/**"
 
-      # No IDE-specific files (unless intentional like .github)
+      # IDE-specific files
       - "**/.vs/**"
       - "**/.vscode/*.log"
+      - "**/.idea/**"
+      - "**/*.user"
+      - "**/*.suo"
 
-      # No temporary files
+      # Temporary files
       - "**/*.tmp"
       - "**/*.temp"
       - "**/*~"
+      - "**/*.swp"
+      - "**/*.swo"
+      - "**/*.bak"
+      - "**/*.old"
 
-      # No OS-specific files
+      # OS-specific files
       - "**/Thumbs.db"
       - "**/.DS_Store"
+      - "**/desktop.ini"
 
-      # No secrets or sensitive data
+      # Secrets and sensitive data
       - "**/*.key"
       - "**/*.pem"
+      - "**/*.pfx"
       - "**/secrets.json"
+      - "**/appsettings.*.json"  # Allow only base appsettings.json
+      - "**/.env"
+      - "**/*.secret"
 
-# Per-directory overrides
+      # Package management artifacts
+      - "**/packages/**/*.dll"
+      - "**/node_modules/**"
+
+      # Log files (except example logs)
+      - "**/*.log"
+      - "!build-test.log.example"
+
+  # ===========================================================================
+  # Regex Patterns - Additional Validation
+  # ===========================================================================
+
+  regex-match:
+    # Test files must end with Test or Tests
+    "**/*Tests.cs|**/*Test.cs":
+      pattern: "^[A-Z][a-zA-Z0-9]*Tests?\\.cs$"
+      severity: warning
+
+  # ===========================================================================
+  # Phase 3: Test Validation
+  # ===========================================================================
+
+  test-location:
+    # Integration tests in dedicated directory
+    integration-test-dir: "RoslynRefactorServer.Tests/Integration"
+
+    # Allow test files adjacent to source (for unit tests)
+    allow-adjacent: true
+
+    # Require tests to match source file names
+    require-test-suffix: true
+
+    exemptions:
+      - "testdata/**"
+      - "test-project/**"  # Sample project for testing
+
+  # ===========================================================================
+  # Phase 1: Architectural Layers - MCP Server Architecture
+  # ===========================================================================
+
+  layers:
+    # Define architectural layers for MCP server
+    - name: "protocol"
+      path: "Protocol/**"
+      description: "MCP protocol implementation"
+      can-import:
+        - "Models/**"
+      cannot-import:
+        - "Services/**"
+        - "Tools/**"
+
+    - name: "tools"
+      path: "Tools/**"
+      description: "MCP tool implementations"
+      can-import:
+        - "Services/**"
+        - "Models/**"
+      cannot-import:
+        - "Protocol/**"
+
+    - name: "services"
+      path: "Services/**"
+      description: "Core services (Roslyn, PathSecurity)"
+      can-import:
+        - "Models/**"
+      cannot-import:
+        - "Tools/**"
+        - "Protocol/**"
+
+    - name: "models"
+      path: "Models/**"
+      description: "Data models (DTOs, domain objects)"
+      can-import: []
+      cannot-import:
+        - "Services/**"
+        - "Tools/**"
+        - "Protocol/**"
+
+    - name: "tests"
+      path: "RoslynRefactorServer.Tests/**"
+      description: "Test code"
+      can-import:
+        - "**"  # Tests can import anything
+
+  # ===========================================================================
+  # Phase 2: Dead Code Detection
+  # ===========================================================================
+
+  entrypoints:
+    - "Program.cs"  # Main entry point
+    - "**/*Tests.cs"  # Test entry points
+    - "**/*Test.cs"
+
+  # ===========================================================================
+  # Directory-Specific Overrides
+  # ===========================================================================
+
 overrides:
-  - path: "test-project/**"
+  # Root directory - keep minimal
+  - path: "."
     rules:
       max-files-in-dir:
-        max: 50  # Test projects can have more files
-        severity: warning
+        max: 12  # Root should have very few files
+        severity: error
 
+  # Test directories can have more files
   - path: "RoslynRefactorServer.Tests/**"
-    rules:
-      naming-convention:
-        "**/*Tests.cs": "PascalCase"
-        "**/*Test.cs": "PascalCase"
-      max-files-in-dir:
-        max: 30
-        severity: warning
-
-  - path: ".github/**"
-    rules:
-      naming-convention:
-        "**/*.yml": "kebab-case"
-      max-files-in-dir:
-        max: 15
-
-  - path: "examples/**"
     rules:
       max-files-in-dir:
         max: 20
+        severity: warning
+      naming-convention:
+        "**/*Tests.cs":
+          pattern: "PascalCase"
+          severity: error
+        "**/*Test.cs":
+          pattern: "PascalCase"
+          severity: error
+
+  # Test project has sample code
+  - path: "test-project/**"
+    rules:
+      max-files-in-dir:
+        max: 25
+        severity: warning
+      # More lenient for test samples
+      disallowed-patterns:
+        severity: warning
+
+  # GitHub workflows
+  - path: ".github/**"
+    rules:
+      max-files-in-dir:
+        max: 10
+        severity: warning
+      naming-convention:
+        "**/*.yml":
+          pattern: "kebab-case"
+          severity: error
+
+  # Examples directory
+  - path: "examples/**"
+    rules:
+      max-files-in-dir:
+        max: 15
         severity: info
       naming-convention:
-        "**/*.cs": "PascalCase|kebab-case"  # More flexible for examples
-
-# Global exclusions - don't lint these directories at all
-exclude:
-  - ".git/**"
-  - "**/bin/**"
-  - "**/obj/**"
-  - "**/.vs/**"
-  - "**/node_modules/**"
-  - "**/packages/**"
+        "**/*.cs":
+          pattern: "PascalCase|kebab-case"
+          severity: warning

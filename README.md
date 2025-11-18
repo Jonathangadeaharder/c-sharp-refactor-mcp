@@ -298,7 +298,7 @@ The project uses [structurelint](https://github.com/Jonathangadeaharder/structur
 structurelint .
 ```
 
-See [STRUCTURELINT.md](STRUCTURELINT.md) for detailed configuration and usage.
+See [docs/STRUCTURELINT.md](docs/STRUCTURELINT.md) for detailed configuration and usage.
 
 ## Continuous Integration
 
@@ -345,7 +345,7 @@ dotnet test --verbosity detailed
 dotnet test /p:CollectCoverage=true
 ```
 
-📖 **Full CI documentation**: See [CI-WORKFLOW.md](CI-WORKFLOW.md) for details on the amendment process, troubleshooting, and best practices.
+📖 **Full CI documentation**: See [docs/CI-WORKFLOW.md](docs/CI-WORKFLOW.md) for details on the amendment process, troubleshooting, and best practices.
 
 ## Troubleshooting
 
