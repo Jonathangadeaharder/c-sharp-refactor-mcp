@@ -13,6 +13,9 @@ on:
 jobs:
   test-and-amend:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
 
     # Don't run on commits from the workflow itself to avoid infinite loops
     if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, 'CI: Update test log')"
@@ -77,6 +80,7 @@ Structurelint validation started at $(date)
         continue-on-error: true
 
       - name: Generate test log
+        if: always()
         run: |
           cat > test-execution.log <<'LOG_EOF'
 ===========================================
@@ -157,23 +161,33 @@ LOG_EOF
           cat test-execution.log
 
       - name: Configure Git
+        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Amend commit with test log
-        if: github.event_name == 'push' && !startsWith(github.ref, 'refs/pull/')
+        if: always() && github.event_name == 'push' && !startsWith(github.ref, 'refs/pull/')
         run: |
+          echo "Debug: Event name = ${{ github.event_name }}"
+          echo "Debug: Ref = ${{ github.ref }}"
+          echo "Debug: Ref name = ${{ github.ref_name }}"
+
           # Add the test log to the commit
           git add test-execution.log
+
+          echo "Debug: Git status after add:"
+          git status
 
           # Check if there are changes to commit
           if git diff --cached --quiet; then
             echo "No changes to amend (test log already exists with same content)"
           else
+            echo "Debug: Amending commit..."
             # Amend the commit with the test log
             git commit --amend --no-edit -m "$(git log -1 --pretty=%B)" -m "[skip ci] CI: Update test log"
 
+            echo "Debug: Pushing to origin/${{ github.ref_name }}..."
             # Force push the amended commit
             git push --force-with-lease origin ${{ github.ref_name }}
 
