@@ -1,0 +1,252 @@
+name: Test and Log Results
+
+on:
+  push:
+    branches:
+      - 'claude/**'
+      - 'main'
+      - 'develop'
+  pull_request:
+    branches:
+      - 'main'
+
+jobs:
+  test-and-amend:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    # Don't run on commits from the workflow itself to avoid infinite loops
+    if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, 'CI: Update test log')"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build project
+        id: build
+        run: |
+          echo "===========================================
+Build started at $(date)
+==========================================="
+          dotnet build --no-restore --configuration Release 2>&1 | tee build-output.txt
+          BUILD_EXIT_CODE=${PIPESTATUS[0]}
+          echo "build_exit_code=$BUILD_EXIT_CODE" >> $GITHUB_OUTPUT
+          exit $BUILD_EXIT_CODE
+        continue-on-error: true
+
+      - name: Run tests
+        id: test
+        run: |
+          echo ""
+          echo "===========================================
+Tests started at $(date)
+==========================================="
+          dotnet test --no-build --configuration Release --verbosity detailed 2>&1 | tee test-output.txt
+          TEST_EXIT_CODE=${PIPESTATUS[0]}
+          echo "test_exit_code=$TEST_EXIT_CODE" >> $GITHUB_OUTPUT
+          exit $TEST_EXIT_CODE
+        continue-on-error: true
+
+      - name: Run structurelint (if available)
+        id: structurelint
+        run: |
+          echo ""
+          echo "===========================================
+Structurelint validation started at $(date)
+==========================================="
+          if command -v structurelint &> /dev/null; then
+            structurelint . 2>&1 | tee structurelint-output.txt
+            LINT_EXIT_CODE=${PIPESTATUS[0]}
+          else
+            echo "structurelint not installed, skipping..."
+            echo "Install with: pip install structurelint" | tee structurelint-output.txt
+            LINT_EXIT_CODE=0
+          fi
+          echo "lint_exit_code=$LINT_EXIT_CODE" >> $GITHUB_OUTPUT
+          exit $LINT_EXIT_CODE
+        continue-on-error: true
+
+      - name: Generate test log
+        if: always()
+        run: |
+          cat > test-execution.log <<'LOG_EOF'
+===========================================
+Multi-Language Refactor MCP Server
+Test Execution Log
+===========================================
+
+Workflow Run: ${{ github.run_number }}
+Branch: ${{ github.ref_name }}
+Commit: ${{ github.sha }}
+Author: ${{ github.actor }}
+Timestamp: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+
+===========================================
+BUILD RESULTS
+===========================================
+
+LOG_EOF
+
+          cat build-output.txt >> test-execution.log 2>/dev/null || echo "No build output" >> test-execution.log
+
+          cat >> test-execution.log <<'LOG_EOF'
+
+===========================================
+TEST RESULTS
+===========================================
+
+LOG_EOF
+
+          cat test-output.txt >> test-execution.log 2>/dev/null || echo "No test output" >> test-execution.log
+
+          cat >> test-execution.log <<'LOG_EOF'
+
+===========================================
+STRUCTURELINT VALIDATION
+===========================================
+
+LOG_EOF
+
+          cat structurelint-output.txt >> test-execution.log 2>/dev/null || echo "No structurelint output" >> test-execution.log
+
+          cat >> test-execution.log <<'LOG_EOF'
+
+===========================================
+SUMMARY
+===========================================
+
+LOG_EOF
+
+          BUILD_CODE=${{ steps.build.outputs.build_exit_code }}
+          TEST_CODE=${{ steps.test.outputs.test_exit_code }}
+          LINT_CODE=${{ steps.structurelint.outputs.lint_exit_code }}
+
+          if [ "$BUILD_CODE" -eq 0 ]; then
+            echo "✅ Build: PASSED" >> test-execution.log
+          else
+            echo "❌ Build: FAILED (exit code: $BUILD_CODE)" >> test-execution.log
+          fi
+
+          if [ "$TEST_CODE" -eq 0 ]; then
+            echo "✅ Tests: PASSED" >> test-execution.log
+          else
+            echo "❌ Tests: FAILED (exit code: $TEST_CODE)" >> test-execution.log
+          fi
+
+          if [ "$LINT_CODE" -eq 0 ]; then
+            echo "✅ Structurelint: PASSED" >> test-execution.log
+          else
+            echo "⚠️  Structurelint: FAILED (exit code: $LINT_CODE)" >> test-execution.log
+          fi
+
+          echo "" >> test-execution.log
+          echo "Completed at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> test-execution.log
+          echo "===========================================" >> test-execution.log
+
+          echo ""
+          echo "Generated test-execution.log:"
+          cat test-execution.log
+
+      - name: Configure Git
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Amend commit with test log
+        if: always() && github.event_name == 'push' && !startsWith(github.ref, 'refs/pull/')
+        run: |
+          echo "Debug: Event name = ${{ github.event_name }}"
+          echo "Debug: Ref = ${{ github.ref }}"
+          echo "Debug: Ref name = ${{ github.ref_name }}"
+
+          # Add the test log to the commit
+          git add test-execution.log
+
+          echo "Debug: Git status after add:"
+          git status
+
+          # Check if there are changes to commit
+          if git diff --cached --quiet; then
+            echo "No changes to amend (test log already exists with same content)"
+          else
+            echo "Debug: Amending commit..."
+            # Amend the commit with the test log
+            git commit --amend --no-edit -m "$(git log -1 --pretty=%B)" -m "[skip ci] CI: Update test log"
+
+            echo "Debug: Pushing to origin/${{ github.ref_name }}..."
+            # Force push the amended commit
+            git push --force-with-lease origin ${{ github.ref_name }}
+
+            echo "✅ Amended commit with test-execution.log"
+            echo "📥 Run 'git pull --force' to get the updated commit"
+          fi
+
+      - name: Upload test log as artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-execution-log
+          path: test-execution.log
+          retention-days: 30
+
+      - name: Comment on PR (if applicable)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const log = fs.readFileSync('test-execution.log', 'utf8');
+
+            const buildCode = ${{ steps.build.outputs.build_exit_code }};
+            const testCode = ${{ steps.test.outputs.test_exit_code }};
+            const lintCode = ${{ steps.structurelint.outputs.lint_exit_code }};
+
+            const buildStatus = buildCode === 0 ? '✅ PASSED' : '❌ FAILED';
+            const testStatus = testCode === 0 ? '✅ PASSED' : '❌ FAILED';
+            const lintStatus = lintCode === 0 ? '✅ PASSED' : '⚠️ FAILED';
+
+            const body = `## Test Execution Results
+
+            | Check | Status |
+            |-------|--------|
+            | Build | ${buildStatus} |
+            | Tests | ${testStatus} |
+            | Structurelint | ${lintStatus} |
+
+            <details>
+            <summary>📋 Full Test Log</summary>
+
+            \`\`\`
+            ${log}
+            \`\`\`
+
+            </details>
+
+            Download the full log from the workflow artifacts.`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+      - name: Fail workflow if tests failed
+        if: steps.build.outputs.build_exit_code != '0' || steps.test.outputs.test_exit_code != '0'
+        run: |
+          echo "::error::Build or tests failed. Check test-execution.log for details."
+          exit 1

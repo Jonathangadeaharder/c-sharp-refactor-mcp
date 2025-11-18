@@ -3,6 +3,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using RoslynRefactorServer.Abstractions;
+using RoslynRefactorServer.Providers;
 using RoslynRefactorServer.Services;
 using RoslynRefactorServer.Tools;
 
@@ -24,15 +26,15 @@ try
         }
         else
         {
-            Console.Error.WriteLine("[ERROR] No MSBuild instances found. Please install the .NET SDK.");
-            return 1;
+            Console.Error.WriteLine("[WARNING] No MSBuild instances found. C# support will be limited.");
+            Console.Error.WriteLine("[INFO] Other languages (TypeScript, Go, C++, Java, Rust) will still be available.");
         }
     }
 }
 catch (Exception ex)
 {
-    Console.Error.WriteLine($"[ERROR] Failed to register MSBuild: {ex.Message}");
-    return 1;
+    Console.Error.WriteLine($"[WARNING] Failed to register MSBuild: {ex.Message}");
+    Console.Error.WriteLine("[INFO] C# support will be limited. Other languages will still be available.");
 }
 
 // Build and configure the host
@@ -52,13 +54,26 @@ builder.Configuration.AddJsonFile("appsettings.json", optional: true, reloadOnCh
 builder.Services.AddSingleton<RoslynWorkspaceService>();
 builder.Services.AddSingleton<PathSecurityService>();
 
+// Register all language providers
+builder.Services.AddSingleton<ILanguageProvider, CSharpLanguageProvider>();
+builder.Services.AddSingleton<ILanguageProvider, VBNetLanguageProvider>();
+builder.Services.AddSingleton<ILanguageProvider, TypeScriptLanguageProvider>();
+builder.Services.AddSingleton<ILanguageProvider, PythonLanguageProvider>();
+builder.Services.AddSingleton<ILanguageProvider, GoLanguageProvider>();
+builder.Services.AddSingleton<ILanguageProvider, CppLanguageProvider>();
+builder.Services.AddSingleton<ILanguageProvider, JavaLanguageProvider>();
+builder.Services.AddSingleton<ILanguageProvider, RustLanguageProvider>();
+
+// Register language detector service
+builder.Services.AddSingleton<LanguageDetectorService>();
+
 // Configure and register the MCP server
 builder.Services.AddMcpServer(options =>
 {
     options.ServerInfo = new ModelContextProtocol.Protocol.Implementation
     {
-        Name = "roslyn-refactor-server",
-        Version = "1.0.0"
+        Name = "multi-language-refactor-server",
+        Version = "2.0.0"
     };
 })
 .WithToolsFromAssembly(); // Automatically discovers [McpServerToolType] classes
@@ -68,11 +83,12 @@ var app = builder.Build();
 // Log startup information
 var logger = app.Services.GetRequiredService<ILogger<Program>>();
 logger.LogInformation("===========================================");
-logger.LogInformation("Roslyn Refactor MCP Server Starting");
+logger.LogInformation("Multi-Language Refactor MCP Server Starting");
 logger.LogInformation("===========================================");
 logger.LogInformation("Protocol: Model Context Protocol (MCP)");
 logger.LogInformation("Transport: stdio (Standard I/O)");
-logger.LogInformation("Semantic Engine: Roslyn (.NET Compiler Platform)");
+logger.LogInformation("Semantic Engines: Roslyn + LSP");
+logger.LogInformation("Supported Languages: C#, VB.NET, TypeScript, Python, Go, C++, Java, Rust");
 logger.LogInformation("===========================================");
 
 try
@@ -80,6 +96,12 @@ try
     // Verify services are registered correctly
     var workspaceService = app.Services.GetRequiredService<RoslynWorkspaceService>();
     var securityService = app.Services.GetRequiredService<PathSecurityService>();
+    var languageDetector = app.Services.GetRequiredService<LanguageDetectorService>();
+
+    var providers = languageDetector.GetAllProviders().ToList();
+    logger.LogInformation("Registered {Count} language providers: {Languages}",
+        providers.Count,
+        string.Join(", ", providers.Select(p => p.LanguageName)));
 
     logger.LogInformation("All services registered successfully");
     logger.LogInformation("Server is ready to accept MCP tool calls");
