@@ -1,0 +1,132 @@
+root: true
+
+# Structurelint configuration for Roslyn Refactor MCP Server
+# A C# project using .NET 8.0 with MCP protocol implementation
+
+rules:
+  # Metric Rules - Keep directories manageable
+  max-depth:
+    max: 6
+    severity: error
+
+  max-files-in-dir:
+    max: 25
+    severity: warning
+
+  max-subdirs:
+    max: 12
+    severity: warning
+
+  # Naming Conventions - C# standards
+  naming-convention:
+    # C# source files should be PascalCase
+    "**/*.cs": "PascalCase"
+
+    # Project files are PascalCase
+    "**/*.csproj": "PascalCase"
+
+    # Solution files are PascalCase
+    "**/*.sln": "PascalCase"
+
+    # Configuration files typically kebab-case or lowercase
+    "**/*.json": "kebab-case|lowercase"
+    "**/*.yml": "kebab-case"
+    "**/*.yaml": "kebab-case"
+
+    # Markdown files can be kebab-case or UPPERCASE
+    "**/*.md": "kebab-case|UPPERCASE|PascalCase"
+
+    # Shell scripts are kebab-case or snake_case
+    "**/*.sh": "kebab-case|snake_case"
+
+    # Directory naming - PascalCase for C# project directories
+    "Models/": "PascalCase"
+    "Services/": "PascalCase"
+    "Tools/": "PascalCase"
+    "RoslynRefactorServer.Tests/": "PascalCase"
+
+  # File Existence Rules
+  file-existence:
+    # Root-level required files
+    "README.md": { exists: 1 }
+    "LICENSE": { exists: 1 }
+    ".gitignore": { exists: 1 }
+
+    # Solution file required
+    "*.sln": { exists: "1+" }
+
+    # Project files
+    "*.csproj": { exists: "1+" }
+
+    # Configuration
+    "appsettings.json": { exists: 1 }
+
+    # CI/CD
+    ".github/workflows/*.yml": { exists: "1+" }
+
+  # Disallowed Patterns - Prevent common issues
+  disallowed-patterns:
+    severity: error
+    patterns:
+      # No compiled binaries in source control
+      - "**/bin/**"
+      - "**/obj/**"
+
+      # No IDE-specific files (unless intentional like .github)
+      - "**/.vs/**"
+      - "**/.vscode/*.log"
+
+      # No temporary files
+      - "**/*.tmp"
+      - "**/*.temp"
+      - "**/*~"
+
+      # No OS-specific files
+      - "**/Thumbs.db"
+      - "**/.DS_Store"
+
+      # No secrets or sensitive data
+      - "**/*.key"
+      - "**/*.pem"
+      - "**/secrets.json"
+
+# Per-directory overrides
+overrides:
+  - path: "test-project/**"
+    rules:
+      max-files-in-dir:
+        max: 50  # Test projects can have more files
+        severity: warning
+
+  - path: "RoslynRefactorServer.Tests/**"
+    rules:
+      naming-convention:
+        "**/*Tests.cs": "PascalCase"
+        "**/*Test.cs": "PascalCase"
+      max-files-in-dir:
+        max: 30
+        severity: warning
+
+  - path: ".github/**"
+    rules:
+      naming-convention:
+        "**/*.yml": "kebab-case"
+      max-files-in-dir:
+        max: 15
+
+  - path: "examples/**"
+    rules:
+      max-files-in-dir:
+        max: 20
+        severity: info
+      naming-convention:
+        "**/*.cs": "PascalCase|kebab-case"  # More flexible for examples
+
+# Global exclusions - don't lint these directories at all
+exclude:
+  - ".git/**"
+  - "**/bin/**"
+  - "**/obj/**"
+  - "**/.vs/**"
+  - "**/node_modules/**"
+  - "**/packages/**"
