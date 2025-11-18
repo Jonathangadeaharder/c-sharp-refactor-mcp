@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;
 using RoslynRefactorServer.Services;
+using System.Security;
 using Xunit;
 
 namespace RoslynRefactorServer.Tests.Services;

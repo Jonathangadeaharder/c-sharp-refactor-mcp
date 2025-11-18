@@ -17,7 +17,7 @@ namespace RoslynRefactorServer.Tools;
 /// MCP tools for safe, semantically-aware C# refactoring.
 /// This class exposes Roslyn's analytical and transformative power to AI agents.
 /// </summary>
-[McpTools]
+[McpServerToolType]
 public class RefactoringTools
 {
     private readonly RoslynWorkspaceService _workspaceService;
@@ -38,7 +38,7 @@ public class RefactoringTools
     /// Loads a C# solution into memory for analysis and refactoring.
     /// This tool must be called first before any other refactoring operations.
     /// </summary>
-    [McpTool]
+    [McpServerTool]
     [Description("Loads a C# solution (.sln file) into memory for analysis and refactoring. " +
                  "This tool must be called first to establish context before any other refactoring operations. " +
                  "Returns information about the loaded solution including project count.")]
@@ -89,7 +89,7 @@ public class RefactoringTools
     /// Gets all compilation diagnostics (errors, warnings) for a solution.
     /// This is a critical safety check that must be performed before refactoring.
     /// </summary>
-    [McpTool]
+    [McpServerTool]
     [Description("Gets all compilation diagnostics (errors, warnings, info) for a solution. " +
                  "This is a CRITICAL safety check that should be performed before any refactoring operation. " +
                  "Refactoring on code with compilation errors is unsafe and may produce incorrect results. " +
@@ -167,7 +167,7 @@ public class RefactoringTools
     /// <summary>
     /// Finds all references to a symbol across the entire solution.
     /// </summary>
-    [McpTool]
+    [McpServerTool]
     [Description("Finds all references to a symbol (class, method, variable, etc.) across the entire solution. " +
                  "Uses semantic analysis to find only true references, not text matches. " +
                  "Returns a list of locations with file path, line number, and code snippet.")]
@@ -219,7 +219,7 @@ public class RefactoringTools
 
             // Find all references
             var references = await SymbolFinder.FindReferencesAsync(symbol, solution);
-            var locations = new List<ReferenceLocation>();
+            var locations = new List<Models.ReferenceLocation>();
 
             foreach (var reference in references)
             {
@@ -231,7 +231,7 @@ public class RefactoringTools
 
                     var snippet = refText.Lines[lineSpan.StartLinePosition.Line].ToString().Trim();
 
-                    locations.Add(new ReferenceLocation
+                    locations.Add(new Models.ReferenceLocation
                     {
                         FilePath = refDoc.FilePath ?? "",
                         StartLine = lineSpan.StartLinePosition.Line + 1,
@@ -264,7 +264,7 @@ public class RefactoringTools
     /// <summary>
     /// Safely renames a symbol across the entire solution using Roslyn's semantic rename API.
     /// </summary>
-    [McpTool]
+    [McpServerTool]
     [Description("Safely renames a symbol (class, method, variable, property, etc.) across the entire solution. " +
                  "Uses Roslyn's semantic rename API which handles scope, overloads, and naming conflicts correctly. " +
                  "This is a write operation that modifies files on disk. " +
@@ -322,7 +322,7 @@ public class RefactoringTools
             var newSolution = await Renamer.RenameSymbolAsync(
                 solution,
                 symbol,
-                new Microsoft.CodeAnalysis.Options.OptionSet(),
+                default(Microsoft.CodeAnalysis.Rename.SymbolRenameOptions),
                 newName);
 
             // Apply changes atomically
@@ -349,7 +349,7 @@ public class RefactoringTools
     /// <summary>
     /// Gets detailed information about a symbol at a specific location.
     /// </summary>
-    [McpTool]
+    [McpServerTool]
     [Description("Gets detailed information about a symbol (class, method, variable, etc.) at a specific location. " +
                  "Returns symbol name, kind, type, containing type, namespace, and other metadata. " +
                  "Useful for understanding code structure before refactoring.")]
