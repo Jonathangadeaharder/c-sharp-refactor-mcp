@@ -1,5 +1,14 @@
 # GitHub Actions Workflows
 
+## Overview
+
+This repository includes two automated workflows:
+
+1. **Build and Test Workflow** (`build-and-test.yml`) - Builds and tests the project
+2. **Repomix Bundle Workflow** (`repomix.yml`) - Generates a bundled codebase artifact
+
+---
+
 ## Build and Test Workflow
 
 This workflow (`build-and-test.yml`) automatically builds and tests the Roslyn-MCP Server on every push and pull request.
@@ -194,3 +203,247 @@ Potential improvements:
 - Generate code coverage reports
 - Benchmark performance metrics
 - Compare against previous runs
+
+---
+
+## Repomix Bundle Workflow
+
+This workflow (`repomix.yml`) automatically generates a bundled version of the entire codebase using [Repomix](https://github.com/yamadashy/repomix) and publishes it as a GitHub Actions artifact.
+
+### What It Does
+
+1. **Checks out the code** with full history
+2. **Sets up Node.js** (required for repomix)
+3. **Runs Repomix** to bundle the codebase into a single file
+4. **Generates metadata** about the bundle (commit, branch, timestamp)
+5. **Uploads artifacts** with both commit-specific and latest versions
+
+### Key Features
+
+#### 📦 Codebase Bundling
+
+Repomix combines your entire codebase into a single, well-formatted plain text file that includes:
+- All source code files
+- Project structure and hierarchy
+- File metadata and statistics
+- Clear file separation markers
+- Configurable inclusion/exclusion patterns
+
+#### 🎯 Multiple Artifact Versions
+
+Two artifacts are uploaded for each run:
+1. **`repomix-bundle-{commit-sha}`** - Commit-specific bundle (90-day retention)
+2. **`repomix-bundle-latest`** - Always the latest bundle (30-day retention)
+
+#### 📊 Bundle Statistics
+
+Each workflow run provides:
+- Total line count
+- Bundle file size
+- Generation timestamp
+- Git commit and branch info
+
+### Configuration
+
+#### `.repomixignore`
+
+Specifies files and directories to exclude from the bundle:
+- Build outputs (`bin/`, `obj/`)
+- Dependencies (`node_modules/`, `packages/`)
+- IDE files (`.vs/`, `.vscode/`)
+- Test results and logs
+- Binary files
+
+#### `repomix.config.json`
+
+Configures repomix behavior:
+```json
+{
+  "output": {
+    "style": "plain",
+    "showLineNumbers": true,
+    "removeComments": false
+  },
+  "include": ["**/*.cs", "**/*.csproj", "**/*.md"],
+  "ignore": {
+    "useGitignore": true,
+    "customPatterns": ["bin/**", "obj/**"]
+  }
+}
+```
+
+### Workflow Triggers
+
+- **Push**: `main`, `develop`, and `claude/**` branches
+- **Pull Request**: Targeting `main` branch
+- **Manual**: Via `workflow_dispatch` (Actions tab → Run workflow)
+
+### Downloading the Bundle
+
+#### From GitHub Actions UI
+
+1. Go to the [Actions tab](https://github.com/your-repo/actions)
+2. Click on a "Repomix Codebase Bundle" workflow run
+3. Scroll to "Artifacts" section
+4. Download either:
+   - `repomix-bundle-{commit-sha}` - Specific commit version
+   - `repomix-bundle-latest` - Most recent version
+
+#### Using GitHub CLI
+
+```bash
+# List artifacts for a specific run
+gh run view {run-id}
+
+# Download the latest bundle
+gh run download --name repomix-bundle-latest
+
+# Download a specific commit's bundle
+gh run download --name repomix-bundle-{commit-sha}
+```
+
+### Use Cases
+
+The repomix bundle is useful for:
+
+1. **AI/LLM Context**: Provide entire codebase to AI tools like Claude or GPT
+2. **Code Review**: Share complete codebase snapshot with reviewers
+3. **Documentation**: Generate comprehensive codebase documentation
+4. **Archival**: Create point-in-time snapshots of the codebase
+5. **Analysis**: Feed to static analysis tools that prefer single-file input
+6. **Onboarding**: Help new developers understand the complete codebase structure
+
+### Bundle Contents
+
+The generated `repomix-output.txt` includes:
+- Plain text formatted codebase structure
+- All source files with line numbers
+- File paths and metadata
+- Project hierarchy
+- Statistics and summary
+
+The `repomix-metadata.json` includes:
+```json
+{
+  "commit": "abc123...",
+  "branch": "feature/my-feature",
+  "timestamp": "2025-01-15 14:30:45 UTC",
+  "triggered_by": "push",
+  "actor": "username",
+  "repository": "owner/repo"
+}
+```
+
+### Security
+
+- The workflow uses `contents: read` permission (minimal access)
+- Security scanning is enabled via `enableSecurityCheck: true`
+- Sensitive files can be excluded via `.repomixignore`
+- No credentials or secrets are included in the bundle
+
+### Performance
+
+Typical workflow execution:
+- Checkout: ~5-10 seconds
+- Node.js setup: ~10-15 seconds (cached after first run)
+- Repomix execution: ~5-30 seconds (depends on codebase size)
+- Artifact upload: ~5-10 seconds
+- **Total**: Usually under 1 minute
+
+**Note**: The workflow uses Node.js v22 (current LTS) and repomix v1.0.0 (pinned for reproducibility).
+
+### Customization
+
+#### Change Output Format
+
+Edit `repomix.config.json`:
+```json
+{
+  "output": {
+    "style": "xml"  // or "markdown", "plain" (default)
+  }
+}
+```
+
+#### Exclude Additional Files
+
+Add to `.repomixignore`:
+```gitignore
+# Custom exclusions
+*.secret
+private/
+```
+
+#### Change Retention Period
+
+Edit `repomix.yml`:
+```yaml
+- name: Upload Repomix bundle as artifact
+  uses: actions/upload-artifact@v4
+  with:
+    retention-days: 180  # Change from 90 (default is 90-day retention)
+```
+
+### Troubleshooting
+
+#### Bundle is too large
+
+**Cause**: Too many files included or large binary files
+
+**Solution**:
+1. Add more patterns to `.repomixignore`
+2. Use `include` patterns in `repomix.config.json` to be more selective
+3. Check for accidentally committed large files
+
+#### Missing files in bundle
+
+**Cause**: Files excluded by ignore patterns
+
+**Solution**:
+1. Check `.repomixignore` and `.gitignore`
+2. Review `customPatterns` in `repomix.config.json`
+3. Ensure files are committed to git
+
+#### Workflow fails at repomix step
+
+**Cause**: Invalid configuration or repomix error
+
+**Solution**:
+1. Check workflow logs for specific error
+2. Validate `repomix.config.json` syntax
+3. Try running repomix locally: `npx repomix`
+
+### Local Testing
+
+Test the bundle generation locally:
+
+```bash
+# Install repomix
+npm install -g repomix
+
+# Generate bundle
+repomix
+
+# View output
+cat repomix-output.txt
+
+# Check stats
+wc -l repomix-output.txt
+du -h repomix-output.txt
+```
+
+### Integration with Other Workflows
+
+The repomix bundle can be used by other workflows:
+
+```yaml
+- name: Download latest bundle
+  uses: actions/download-artifact@v4
+  with:
+    name: repomix-bundle-latest
+
+- name: Process bundle
+  run: |
+    # Your processing logic here
+    cat repomix-output.txt | your-tool
+```

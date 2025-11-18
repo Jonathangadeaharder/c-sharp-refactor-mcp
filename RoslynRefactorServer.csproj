@@ -9,8 +9,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Exclude test files from main project compilation -->
+    <Compile Remove="RoslynRefactorServer.Tests/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- MCP SDK for building MCP servers -->
-    <PackageReference Include="ModelContextProtocol" Version="0.6.0" />
+    <PackageReference Include="ModelContextProtocol" Version="0.4.0-preview.3" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
 
     <!-- Roslyn APIs for semantic analysis and refactoring -->

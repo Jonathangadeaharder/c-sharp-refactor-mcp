@@ -1,0 +1,31 @@
+# IDE and editor files
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD artifacts
+build-test.log
+build-test.log.example
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Temporary files
+*.tmp
+*.temp
+*.cache
+
+# Note: Build outputs (bin/, obj/) and test results are handled in repomix.config.json
+# to avoid duplication and centralize configuration

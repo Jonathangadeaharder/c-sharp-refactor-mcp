@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Editing;
 using Microsoft.CodeAnalysis.FindSymbols;
 using Microsoft.CodeAnalysis.Text;
+using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 using RoslynRefactorServer.Services;
 using System.ComponentModel;
@@ -15,7 +16,7 @@ namespace RoslynRefactorServer.Tools;
 /// Advanced MCP refactoring tools that require complex manual implementation
 /// using low-level Roslyn APIs like data flow analysis and syntax rewriting.
 /// </summary>
-[McpTools]
+[McpServerToolType]
 public class AdvancedRefactoringTools
 {
     private readonly RoslynWorkspaceService _workspaceService;
@@ -35,7 +36,7 @@ public class AdvancedRefactoringTools
     /// <summary>
     /// Extracts a selected block of code into a new method with proper parameters and return values.
     /// </summary>
-    [McpTool]
+    [McpServerTool]
     [Description("Extracts a selected block of code into a new method. " +
                  "Uses data flow analysis to determine correct method signature (parameters and return type). " +
                  "This is a complex write operation. IMPORTANT: Ensure code has no compilation errors first.")]
@@ -228,7 +229,7 @@ public class AdvancedRefactoringTools
     /// <summary>
     /// Encapsulates a field by creating a property and updating all references.
     /// </summary>
-    [McpTool]
+    [McpServerTool]
     [Description("Encapsulates a private field by creating a public property with get/set accessors. " +
                  "Updates all references to the field across the solution to use the new property. " +
                  "This is a write operation that modifies multiple files.")]

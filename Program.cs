@@ -55,14 +55,13 @@ builder.Services.AddSingleton<PathSecurityService>();
 // Configure and register the MCP server
 builder.Services.AddMcpServer(options =>
 {
-    options.DisplayName = "Roslyn Refactor Server";
-    options.ServerInfo = new ModelContextProtocol.Sdk.ServerInfo
+    options.ServerInfo = new ModelContextProtocol.Protocol.Implementation
     {
         Name = "roslyn-refactor-server",
         Version = "1.0.0"
     };
 })
-.ExposeAssemblyTools(); // Automatically discovers [McpTools] classes
+.WithToolsFromAssembly(); // Automatically discovers [McpServerToolType] classes
 
 var app = builder.Build();
 
