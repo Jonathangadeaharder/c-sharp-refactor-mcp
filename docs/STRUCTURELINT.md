@@ -114,6 +114,12 @@ The workflow:
 - Run tests
 ```
 
+### Current Limits
+
+- Max directory depth: **4**
+- Max files per directory: **15** (general), **20** (tests), **25** (test projects)
+- Max subdirectories: **8**
+
 If structurelint fails, the build will not proceed. This ensures structural integrity is maintained before compilation.
 
 ## Customizing Rules
