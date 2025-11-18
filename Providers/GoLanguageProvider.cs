@@ -1,3 +1,4 @@
+// @structurelint:no-test - Integration component requiring LSP server
 using Microsoft.Extensions.Logging;
 
 namespace RoslynRefactorServer.Providers;

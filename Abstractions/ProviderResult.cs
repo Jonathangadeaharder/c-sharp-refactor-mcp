@@ -1,3 +1,4 @@
+// @structurelint:no-test - Simple data structure wrapper, no logic to test
 namespace RoslynRefactorServer.Abstractions;
 
 /// <summary>

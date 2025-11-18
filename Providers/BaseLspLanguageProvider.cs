@@ -1,3 +1,4 @@
+// @structurelint:no-test - Abstract base class, tested through concrete implementations
 using Microsoft.Extensions.Logging;
 using RoslynRefactorServer.Abstractions;
 using RoslynRefactorServer.Models;

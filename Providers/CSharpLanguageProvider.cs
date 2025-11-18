@@ -1,3 +1,4 @@
+// @structurelint:no-test - Integration component requiring full Roslyn workspace
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.FindSymbols;

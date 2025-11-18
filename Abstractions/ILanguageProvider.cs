@@ -1,3 +1,4 @@
+// @structurelint:no-test - Integration interface, tested through provider implementations
 using RoslynRefactorServer.Models;
 
 namespace RoslynRefactorServer.Abstractions;
