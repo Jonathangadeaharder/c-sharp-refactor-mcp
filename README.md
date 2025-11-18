@@ -1,17 +1,26 @@
-# Roslyn Refactor MCP Server
+# Multi-Language Refactor MCP Server
 
-A semantic bridge between AI agents and C# code, providing **safe, compiler-aware refactoring** through the Model Context Protocol (MCP).
+A semantic bridge between AI agents and your code, providing **safe, compiler-aware refactoring** across multiple programming languages through the Model Context Protocol (MCP).
 
 ## Overview
 
-This server transforms AI-driven development by pairing the stochastic, generative capabilities of Large Language Models with the deterministic, compiler-level APIs of the .NET Compiler Platform (Roslyn). Instead of having AI agents generate refactored code (which is error-prone), this architecture allows agents to **request** refactorings that are executed by the compiler itself.
+This server transforms AI-driven development by combining semantic analysis engines with AI agents. Instead of having AI generate refactored code (which is error-prone), this architecture allows agents to **request** refactorings that are executed by language-specific semantic engines:
+
+- **C#**: Roslyn (.NET Compiler Platform)
+- **TypeScript**: TypeScript Language Server
+- **Go**: gopls
+- **C++**: clangd
+- **Java**: Eclipse JDT Language Server
+- **Rust**: rust-analyzer
 
 ### Key Features
 
-- **Semantic Safety**: All refactorings use Roslyn's semantic model, not text manipulation
-- **Solution-Wide Operations**: Refactorings work across entire solutions, multiple projects, and all references
-- **Stateful Architecture**: Maintains workspace state for performance across multiple operations
-- **Concurrent Safety**: Thread-safe operations with per-solution locking
+- **Multi-Language Support**: C#, TypeScript, Go, C++, Java, and Rust
+- **Semantic Safety**: All refactorings use language-specific semantic models, not text manipulation
+- **Automatic Language Detection**: Detects language from project files
+- **Unified API**: Same MCP tools work across all languages
+- **Hybrid Architecture**: Roslyn for .NET languages, LSP for others
+- **Project-Wide Operations**: Refactorings work across entire projects and all references
 - **Path Security**: Validates all file access against configured allowed directories
 - **MCP Protocol**: Standard protocol supported by Claude, GitHub Copilot, and other AI tools
 
@@ -19,49 +28,86 @@ This server transforms AI-driven development by pairing the stochastic, generati
 
 ### Core Components
 
-1. **RoslynWorkspaceService** (Singleton)
-   - Loads and caches MSBuild solutions
-   - Manages immutable Roslyn transformations
-   - Provides thread-safe state management
-   - Detects and handles stale cache
+1. **Language Provider Abstraction** (`ILanguageProvider`)
+   - Unified interface for all language-specific operations
+   - Plugin architecture for extensibility
+   - Supports both Roslyn and LSP-based providers
 
-2. **PathSecurityService**
+2. **Language Providers**
+   - **CSharpLanguageProvider**: Uses Roslyn for semantic analysis
+   - **TypeScriptLanguageProvider**: Uses typescript-language-server via LSP
+   - **GoLanguageProvider**: Uses gopls via LSP
+   - **CppLanguageProvider**: Uses clangd via LSP
+   - **JavaLanguageProvider**: Uses Eclipse JDT via LSP
+   - **RustLanguageProvider**: Uses rust-analyzer via LSP
+
+3. **LanguageDetectorService**
+   - Automatically detects language from project files
+   - Maps file extensions to language providers
+   - Supports characteristic file detection (go.mod, Cargo.toml, etc.)
+
+4. **LspClient**
+   - Generic LSP (Language Server Protocol) client
+   - Manages communication with language servers
+   - Handles initialization, requests, and notifications
+
+5. **PathSecurityService**
    - Validates all file paths against allowed directories
    - Prevents path traversal attacks
    - Configurable via `appsettings.json`
 
-3. **RefactoringTools**
-   - Basic refactoring operations
-   - Symbol analysis and navigation
-   - Diagnostic checking
-
-4. **AdvancedRefactoringTools**
-   - Complex refactorings using data flow analysis
-   - Multi-document transformations
-   - Custom syntax rewriting
+6. **UnifiedRefactoringTools**
+   - Language-agnostic MCP tools
+   - Automatically delegates to appropriate language provider
+   - Consistent API across all languages
 
 ### Why This Architecture?
 
-| Operation | Unsafe (Regex/Text) | Safe (Roslyn Semantic) |
-|-----------|---------------------|------------------------|
-| **Rename Symbol** | Breaks on same-named symbols in different scopes | Correctly handles scope, overloads, cross-project references |
+| Operation | Unsafe (Regex/Text) | Safe (Semantic Analysis) |
+|-----------|---------------------|--------------------------|
+| **Rename Symbol** | Breaks on same-named symbols in different scopes | Correctly handles scope, overloads, cross-file references |
 | **Find References** | Finds text matches (including comments, strings) | Finds only true semantic references |
-| **Extract Method** | Cannot determine correct signature | Uses data flow analysis for perfect signature |
+| **Extract Method** | Cannot determine correct signature | Uses data flow analysis for correct signature |
+
+**Multi-Language Support:**
+- **C#**: Full Roslyn integration with MSBuild workspace support
+- **TypeScript/JavaScript**: LSP-based with TypeScript compiler API backing
+- **Go**: LSP-based with gopls semantic analysis
+- **C++**: LSP-based with clangd (LLVM) semantic analysis
+- **Java**: LSP-based with Eclipse JDT compiler
+- **Rust**: LSP-based with rust-analyzer semantic analysis
 
 ## Available Tools
 
-### 1. `load_solution`
-Loads a C# solution into memory. **Must be called first** before any other operations.
+### 1. `load_project`
+Loads a project into memory. **Must be called first** before any other operations. Automatically detects the language.
+
+**Supported Project Files:**
+- C#: `.sln`, `.csproj`
+- TypeScript: `tsconfig.json`, `package.json`
+- Go: `go.mod`
+- C++: `CMakeLists.txt`, `compile_commands.json`
+- Java: `pom.xml`, `build.gradle`
+- Rust: `Cargo.toml`
 
 **Parameters:**
-- `solutionPath` (string): Absolute path to .sln file
+- `projectPath` (string): Absolute path to project file
 
 **Example:**
 ```json
 {
-  "name": "load_solution",
+  "name": "load_project",
   "arguments": {
-    "solutionPath": "/home/user/projects/MyProject/MyProject.sln"
+    "projectPath": "/home/user/projects/MyProject/MyProject.sln"
+  }
+}
+```
+
+```json
+{
+  "name": "load_project",
+  "arguments": {
+    "projectPath": "/home/user/projects/my-app/tsconfig.json"
   }
 }
 ```
@@ -141,14 +187,24 @@ Encapsulates a field by creating a property and updating all references.
 
 ### Prerequisites
 
-- .NET 8.0 SDK or later
-- MSBuild (installed with .NET SDK)
+**Core:**
+- .NET 8.0 SDK or later (required)
+- MSBuild (installed with .NET SDK, required for C# support)
+
+**Language Servers (install only what you need):**
+- TypeScript: `npm install -g typescript-language-server typescript`
+- Go: `go install golang.org/x/tools/gopls@latest`
+- C++: `apt-get install clangd` or `brew install llvm`
+- Java: Eclipse JDT Language Server
+- Rust: `rustup component add rust-analyzer`
+
+See [INSTALLATION.md](docs/INSTALLATION.md) for detailed installation instructions.
 
 ### Build the Server
 
 ```bash
 # Clone the repository
-cd /path/to/roslyn-refactor-server
+cd /path/to/multi-language-refactor-server
 
 # Restore dependencies
 dotnet restore
@@ -188,7 +244,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
 ```json
 {
   "mcpServers": {
-    "roslyn-refactor-server": {
+    "multi-language-refactor": {
       "command": "dotnet",
       "args": [
         "run",
@@ -205,7 +261,7 @@ Or if using published executable:
 ```json
 {
   "mcpServers": {
-    "roslyn-refactor-server": {
+    "multi-language-refactor": {
       "command": "/absolute/path/to/publish/RoslynRefactorServer"
     }
   }
@@ -219,7 +275,7 @@ Create `.vscode/mcp.json` in your workspace:
 ```json
 {
   "servers": {
-    "roslyn-refactor-server": {
+    "multi-language-refactor": {
       "type": "stdio",
       "command": "dotnet",
       "args": [
@@ -236,38 +292,70 @@ Create `.vscode/mcp.json` in your workspace:
 
 ### AI Agent Workflow
 
-**Recommended workflow for safe refactoring:**
+**Recommended workflow for safe refactoring (works for all languages):**
 
 ```
-1. AI: load_solution("/path/to/MyProject.sln")
-   → Server loads solution, caches workspace
+1. AI: load_project("/path/to/project-file")
+   → Server detects language and loads project
+   → Examples: MyProject.sln, tsconfig.json, go.mod, Cargo.toml
 
-2. AI: get_diagnostics("/path/to/MyProject.sln", "Error")
-   → Server checks for compilation errors
+2. AI: get_diagnostics("/path/to/project-file", "Error")
+   → Server checks for compilation/lint errors
    → If errors found, AI should ask user to fix them first
 
-3. AI: find_all_references("/path/to/MyProject.sln", "/path/to/MyClass.cs", 10, 15)
+3. AI: find_all_references("/path/to/project-file", "/path/to/source-file", 10, 15)
    → AI understands impact of changes
 
 4. AI: rename_symbol(..., newName: "BetterName")
-   → Server performs safe rename across solution
-   → All files updated atomically
+   → Server performs safe rename across project
+   → All files updated semantically
 
 5. AI: get_diagnostics(...) [Optional verification]
    → Confirms refactoring didn't break compilation
 ```
 
-### Example Claude Prompt
+### Example Prompts for Different Languages
 
+**C#:**
 ```
 I have a C# solution at /home/user/projects/MyApp/MyApp.sln
 
-Please use the roslyn-refactor-server tools to:
+Please use the multi-language-refactor tools to:
 1. Load the solution
 2. Check for compilation errors
 3. Find all references to the "ProcessData" method in MyService.cs (line 45)
 4. If safe, rename it to "ProcessDataAsync"
 5. Verify no errors were introduced
+```
+
+**TypeScript:**
+```
+I have a TypeScript project at /home/user/projects/my-app/tsconfig.json
+
+Please refactor my code:
+1. Load the project
+2. Find all references to the "getUserData" function in user.service.ts (line 23)
+3. Rename it to "fetchUserData"
+```
+
+**Go:**
+```
+I have a Go project at /home/user/projects/my-service/go.mod
+
+Please help me refactor:
+1. Load the project
+2. Find all references to the "ProcessRequest" function in handler.go (line 56)
+3. Rename it to "HandleRequest"
+```
+
+**Rust:**
+```
+I have a Rust project at /home/user/projects/my-crate/Cargo.toml
+
+Please refactor:
+1. Load the project
+2. Find all references to the "compute_value" function in lib.rs (line 34)
+3. Rename it to "calculate_value"
 ```
 
 ## Performance Considerations
