@@ -56,7 +56,9 @@ builder.Services.AddSingleton<PathSecurityService>();
 
 // Register all language providers
 builder.Services.AddSingleton<ILanguageProvider, CSharpLanguageProvider>();
+builder.Services.AddSingleton<ILanguageProvider, VBNetLanguageProvider>();
 builder.Services.AddSingleton<ILanguageProvider, TypeScriptLanguageProvider>();
+builder.Services.AddSingleton<ILanguageProvider, PythonLanguageProvider>();
 builder.Services.AddSingleton<ILanguageProvider, GoLanguageProvider>();
 builder.Services.AddSingleton<ILanguageProvider, CppLanguageProvider>();
 builder.Services.AddSingleton<ILanguageProvider, JavaLanguageProvider>();
@@ -86,7 +88,7 @@ logger.LogInformation("===========================================");
 logger.LogInformation("Protocol: Model Context Protocol (MCP)");
 logger.LogInformation("Transport: stdio (Standard I/O)");
 logger.LogInformation("Semantic Engines: Roslyn + LSP");
-logger.LogInformation("Supported Languages: C#, TypeScript, Go, C++, Java, Rust");
+logger.LogInformation("Supported Languages: C#, VB.NET, TypeScript, Python, Go, C++, Java, Rust");
 logger.LogInformation("===========================================");
 
 try

@@ -105,6 +105,9 @@ public class LanguageDetectorService
         {
             { "go.mod", "go" },
             { "Cargo.toml", "rust" },
+            { "pyproject.toml", "python" },
+            { "requirements.txt", "python" },
+            { "setup.py", "python" },
             { "package.json", "typescript" }, // Could be JavaScript, but TypeScript is a superset
             { "pom.xml", "java" },
             { "build.gradle", "java" },

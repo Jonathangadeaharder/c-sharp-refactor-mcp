@@ -18,6 +18,11 @@ Install language servers for the languages you want to use:
 npm install -g typescript-language-server typescript
 ```
 
+#### Python
+```bash
+npm install -g pyright
+```
+
 #### Go
 ```bash
 go install golang.org/x/tools/gopls@latest

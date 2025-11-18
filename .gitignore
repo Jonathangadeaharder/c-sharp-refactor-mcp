@@ -57,8 +57,14 @@ ehthumbs.db
 
 # Logs
 *.log
-!build-test.log  # Exception: CI log file is tracked
+!build-test.log  # Exception: CI log file is tracked (legacy)
+!test-execution.log  # Exception: CI workflow test log is tracked
 logs/
+
+# Temporary workflow files
+build-output.txt
+test-output.txt
+structurelint-output.txt
 
 # Temporary files
 *.tmp

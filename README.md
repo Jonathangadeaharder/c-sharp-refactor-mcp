@@ -7,7 +7,9 @@ A semantic bridge between AI agents and your code, providing **safe, compiler-aw
 This server transforms AI-driven development by combining semantic analysis engines with AI agents. Instead of having AI generate refactored code (which is error-prone), this architecture allows agents to **request** refactorings that are executed by language-specific semantic engines:
 
 - **C#**: Roslyn (.NET Compiler Platform)
+- **VB.NET**: Roslyn (.NET Compiler Platform)
 - **TypeScript**: TypeScript Language Server
+- **Python**: Pyright (Python Type Checker & Language Server)
 - **Go**: gopls
 - **C++**: clangd
 - **Java**: Eclipse JDT Language Server
@@ -15,7 +17,7 @@ This server transforms AI-driven development by combining semantic analysis engi
 
 ### Key Features
 
-- **Multi-Language Support**: C#, TypeScript, Go, C++, Java, and Rust
+- **Multi-Language Support**: C#, VB.NET, TypeScript, Python, Go, C++, Java, and Rust
 - **Semantic Safety**: All refactorings use language-specific semantic models, not text manipulation
 - **Automatic Language Detection**: Detects language from project files
 - **Unified API**: Same MCP tools work across all languages
@@ -71,7 +73,9 @@ This server transforms AI-driven development by combining semantic analysis engi
 
 **Multi-Language Support:**
 - **C#**: Full Roslyn integration with MSBuild workspace support
+- **VB.NET**: Full Roslyn integration with MSBuild workspace support
 - **TypeScript/JavaScript**: LSP-based with TypeScript compiler API backing
+- **Python**: LSP-based with Pyright type checker and semantic analysis
 - **Go**: LSP-based with gopls semantic analysis
 - **C++**: LSP-based with clangd (LLVM) semantic analysis
 - **Java**: LSP-based with Eclipse JDT compiler
@@ -84,7 +88,9 @@ Loads a project into memory. **Must be called first** before any other operation
 
 **Supported Project Files:**
 - C#: `.sln`, `.csproj`
+- VB.NET: `.sln`, `.vbproj`
 - TypeScript: `tsconfig.json`, `package.json`
+- Python: `pyproject.toml`, `setup.py`, `requirements.txt`
 - Go: `go.mod`
 - C++: `CMakeLists.txt`, `compile_commands.json`
 - Java: `pom.xml`, `build.gradle`
@@ -193,6 +199,7 @@ Encapsulates a field by creating a property and updating all references.
 
 **Language Servers (install only what you need):**
 - TypeScript: `npm install -g typescript-language-server typescript`
+- Python: `npm install -g pyright`
 - Go: `go install golang.org/x/tools/gopls@latest`
 - C++: `apt-get install clangd` or `brew install llvm`
 - Java: Eclipse JDT Language Server
