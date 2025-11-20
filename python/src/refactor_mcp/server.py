@@ -14,8 +14,8 @@ from fastmcp import FastMCP
 from fastmcp.auth import OAuthProvider
 from pydantic import BaseModel, Field
 
+from .clients.lsp_pool import LspClientPool
 from .clients.roslyn import RoslynClient
-from .clients.lsp import LspClientPool
 from .config import Config
 from .models import AppContext
 from .tools.refactoring import register_refactoring_tools
