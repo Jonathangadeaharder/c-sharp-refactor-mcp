@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from .clients.lsp_pool import LspClientPool
 from .clients.roslyn import RoslynClient
 from .clients.ts_morph import TsMorphClient, TsMorphError
+from .clients.rope_client import RopeClient, RopeError
 from .config import Config
 from .models import AppContext
 from .tools.refactoring import register_refactoring_tools
@@ -75,6 +76,17 @@ async def lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
             "Run: cd python/ts_morph_cli && ./build.sh"
         )
 
+    # Initialize Python Rope client (pure Python - no subprocess!)
+    rope_client: RopeClient | None = None
+    try:
+        rope_client = RopeClient()
+        logger.info("Rope client initialized for Python refactoring (pure Python!)")
+    except RopeError as e:
+        logger.warning(
+            f"Rope library not available: {e.message}. Python native refactoring will be unavailable. "
+            "Install with: pip install rope"
+        )
+
     # Create application context
     ctx = AppContext(
         config=config,
@@ -83,6 +95,7 @@ async def lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
         lsp_pool=lsp_pool,
         roslyn_client=roslyn_client,
         ts_morph_client=ts_morph_client,
+        rope_client=rope_client,
     )
 
     logger.info("Server started successfully")
@@ -95,6 +108,9 @@ async def lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
 
         if roslyn_client:
             await roslyn_client.stop()
+
+        if rope_client:
+            rope_client.close_all_projects()
 
         await lsp_pool.stop()
 

@@ -13,10 +13,38 @@ from fastmcp import FastMCP
 
 from ..clients.lsp import LspError
 from ..clients.ts_morph import TsMorphError
+from ..clients.rope_client import RopeError
 from ..models import AppContext, Language
 from ..utils.security import SecurityError
 
 logger = logging.getLogger(__name__)
+
+
+def _line_column_to_offset(file_path: Path, line: int, column: int) -> int:
+    """
+    Convert line/column (1-based) to character offset (0-based).
+
+    Args:
+        file_path: Path to file
+        line: Line number (1-based)
+        column: Column number (1-based)
+
+    Returns:
+        Character offset (0-based)
+    """
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    # Convert to 0-based
+    line_idx = line - 1
+    col_idx = column - 1
+
+    # Calculate offset
+    lines = content.split('\n')
+    offset = sum(len(l) + 1 for l in lines[:line_idx])  # +1 for newline
+    offset += col_idx
+
+    return offset
 
 
 def register_refactoring_tools(mcp: FastMCP) -> None:
@@ -148,6 +176,24 @@ def register_refactoring_tools(mcp: FastMCP) -> None:
                     ),
                     "error": result.error,
                 }
+            elif lang == Language.PYTHON:
+                # Use Rope for Python (pure Python - no subprocess!)
+                if not ctx.rope_client:
+                    return {"success": False, "error": "Rope client not available"}
+
+                offset = _line_column_to_offset(validated_file, line, column)
+                result = await ctx.rope_client.rename_symbol(
+                    project_path, str(validated_file), offset, new_name
+                )
+
+                return {
+                    "success": result.success,
+                    "symbol_name": result.symbol_name or "unknown",
+                    "new_name": new_name,
+                    "files_modified": result.files_modified,
+                    "locations_modified": result.locations_modified,
+                    "error": result.error,
+                }
             else:
                 # Use LSP for other languages
                 client = await ctx.lsp_pool.get_client(lang, Path(project_path).parent)
@@ -171,6 +217,9 @@ def register_refactoring_tools(mcp: FastMCP) -> None:
         except TsMorphError as e:
             logger.error(f"ts-morph error in rename: {e}")
             return {"success": False, "error": f"TypeScript compiler error: {e.message}"}
+        except RopeError as e:
+            logger.error(f"Rope error in rename: {e}")
+            return {"success": False, "error": f"Python refactoring error: {e.message}"}
         except Exception as e:
             logger.error(f"Error in rename: {e}")
             return {"success": False, "error": str(e)}
@@ -240,6 +289,29 @@ def register_refactoring_tools(mcp: FastMCP) -> None:
                         for ref in references
                     ]
                 )
+            elif lang == Language.PYTHON:
+                if not ctx.rope_client:
+                    return {"success": False, "error": "Rope client not available"}
+
+                offset = _line_column_to_offset(validated_file, line, column)
+                references = await ctx.rope_client.find_references(
+                    project_path, str(validated_file), offset
+                )
+                # Convert to expected format
+                from ..models.refactoring import ReferencesInfo, ReferenceLocation
+                result = ReferencesInfo(
+                    symbol_name="symbol",
+                    reference_count=len(references),
+                    references=[
+                        ReferenceLocation(
+                            file_path=ref.file_path,
+                            line=ref.line,
+                            column=ref.column,
+                            preview=ref.line_text
+                        )
+                        for ref in references
+                    ]
+                )
             else:
                 client = await ctx.lsp_pool.get_client(lang, Path(project_path).parent)
                 result = await client.find_references(validated_file, line, column)
@@ -268,6 +340,9 @@ def register_refactoring_tools(mcp: FastMCP) -> None:
         except TsMorphError as e:
             logger.error(f"ts-morph error in find_references: {e}")
             return {"success": False, "error": f"TypeScript compiler error: {e.message}"}
+        except RopeError as e:
+            logger.error(f"Rope error in find_references: {e}")
+            return {"success": False, "error": f"Python refactoring error: {e.message}"}
         except Exception as e:
             logger.error(f"Error in find_references: {e}")
             return {"success": False, "error": str(e)}
@@ -322,6 +397,14 @@ def register_refactoring_tools(mcp: FastMCP) -> None:
                 result = await ctx.ts_morph_client.get_symbol_info(
                     project_path, str(validated_file), line, column
                 )
+            elif lang == Language.PYTHON:
+                if not ctx.rope_client:
+                    return {"success": False, "error": "Rope client not available"}
+
+                offset = _line_column_to_offset(validated_file, line, column)
+                result = await ctx.rope_client.get_symbol_info(
+                    project_path, str(validated_file), offset
+                )
             else:
                 client = await ctx.lsp_pool.get_client(lang, Path(project_path).parent)
                 result = await client.get_symbol_info(validated_file, line, column)
@@ -349,6 +432,9 @@ def register_refactoring_tools(mcp: FastMCP) -> None:
         except TsMorphError as e:
             logger.error(f"ts-morph error in get_symbol_info: {e}")
             return {"success": False, "error": f"TypeScript compiler error: {e.message}"}
+        except RopeError as e:
+            logger.error(f"Rope error in get_symbol_info: {e}")
+            return {"success": False, "error": f"Python refactoring error: {e.message}"}
         except Exception as e:
             logger.error(f"Error in get_symbol_info: {e}")
             return {"success": False, "error": str(e)}
@@ -446,6 +532,30 @@ def register_refactoring_tools(mcp: FastMCP) -> None:
                     "error": result.error,
                 }
 
+            elif lang == Language.PYTHON:
+                if not ctx.rope_client:
+                    return {"success": False, "error": "Rope client not available"}
+
+                start_offset = _line_column_to_offset(validated_file, start_line, start_column)
+                end_offset = _line_column_to_offset(validated_file, end_line, end_column)
+
+                result = await ctx.rope_client.extract_method(
+                    project_path,
+                    str(validated_file),
+                    start_offset,
+                    end_offset,
+                    method_name,
+                )
+
+                return {
+                    "success": result.success,
+                    "method_name": method_name,
+                    "files_modified": result.files_modified,
+                    "parameters": [],  # Rope provides this but not extracted yet
+                    "return_type": "unknown",  # Rope provides this but not extracted yet
+                    "error": result.error,
+                }
+
             else:
                 return {
                     "success": False,
@@ -458,6 +568,9 @@ def register_refactoring_tools(mcp: FastMCP) -> None:
         except TsMorphError as e:
             logger.error(f"ts-morph error in extract_method: {e}")
             return {"success": False, "error": f"TypeScript compiler error: {e.message}"}
+        except RopeError as e:
+            logger.error(f"Rope error in extract_method: {e}")
+            return {"success": False, "error": f"Python refactoring error: {e.message}"}
         except Exception as e:
             logger.error(f"Error in extract_method: {e}")
             return {"success": False, "error": str(e)}
