@@ -134,14 +134,17 @@ class Config(BaseSettings):
         """Try to find Roslyn CLI automatically."""
         # Check common locations
         search_paths = [
-            # Relative to Python project
+            # Relative to Python project (published self-contained)
+            Path(__file__).parent.parent.parent / "roslyn_cli" / "bin" / "roslyn-cli",
+            Path(__file__).parent.parent.parent / "roslyn_cli" / "bin" / "roslyn-cli.exe",
+            # Relative to Python project (dotnet build output)
+            Path(__file__).parent.parent.parent / "roslyn_cli" / "bin" / "Release" / "net8.0" / "roslyn-cli",
+            Path(__file__).parent.parent.parent / "roslyn_cli" / "bin" / "Debug" / "net8.0" / "roslyn-cli",
+            # Legacy name (for backwards compatibility)
             Path(__file__).parent.parent.parent / "roslyn_cli" / "bin" / "RoslynCLI",
             Path(__file__).parent.parent.parent / "roslyn_cli" / "bin" / "RoslynCLI.exe",
-            # Next to C# project
-            Path(__file__).parent.parent.parent.parent / "bin" / "Debug" / "net8.0" / "RoslynCLI",
-            Path(__file__).parent.parent.parent.parent / "bin" / "Release" / "net8.0" / "RoslynCLI",
             # In PATH
-            *[Path(p) / "RoslynCLI" for p in os.environ.get("PATH", "").split(os.pathsep)],
+            *[Path(p) / "roslyn-cli" for p in os.environ.get("PATH", "").split(os.pathsep) if p],
         ]
 
         for path in search_paths:

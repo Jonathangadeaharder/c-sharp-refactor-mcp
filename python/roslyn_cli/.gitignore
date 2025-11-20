@@ -1,0 +1,19 @@
+# Build outputs
+bin/
+obj/
+publish/
+
+# .NET
+*.dll
+*.exe
+*.pdb
+*.cache
+
+# IDE
+.vs/
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
