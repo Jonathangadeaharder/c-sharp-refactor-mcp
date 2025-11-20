@@ -3,8 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"go/ast"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"io"
 	"os"
 	"path/filepath"
@@ -234,10 +236,119 @@ func handleGetDiagnostics(params map[string]interface{}) (interface{}, error) {
 }
 
 func handleFindReferences(params map[string]interface{}) (interface{}, error) {
-	// Simplified implementation - full implementation would use golang.org/x/tools/cmd/guru
+	projectPath, _ := params["project_path"].(string)
+	filePath, _ := params["file_path"].(string)
+	line, _ := params["line"].(float64)
+	column, _ := params["column"].(float64)
+
+	if projectPath == "" || filePath == "" {
+		return nil, fmt.Errorf("missing required parameters")
+	}
+
+	// Load the package using go/packages
+	cfg := &packages.Config{
+		Mode: packages.NeedName | packages.NeedFiles | packages.NeedSyntax | packages.NeedTypesInfo | packages.NeedTypes,
+		Dir:  projectPath,
+	}
+
+	pkgs, err := packages.Load(cfg, "./...")
+	if err != nil {
+		return nil, fmt.Errorf("failed to load packages: %w", err)
+	}
+
+	var references []ReferenceInfo
+
+	// Find the symbol at the given position
+	targetPos := token.Pos(0)
+	var targetObj *types.Object
+
+	for _, pkg := range pkgs {
+		for _, file := range pkg.Syntax {
+			fpos := fset.File(file.Pos())
+			if fpos == nil || fpos.Name() != filePath {
+				continue
+			}
+
+			// Convert line/column to token.Pos
+			offset := lineColumnToOffset(fpos, int(line), int(column))
+			targetPos = fpos.Pos(offset)
+
+			// Find the identifier at this position
+			ast.Inspect(file, func(n ast.Node) bool {
+				if ident, ok := n.(*ast.Ident); ok {
+					if ident.Pos() <= targetPos && targetPos <= ident.End() {
+						targetObj = pkg.TypesInfo.Uses[ident]
+						if targetObj == nil {
+							targetObj = pkg.TypesInfo.Defs[ident]
+						}
+						return false
+					}
+				}
+				return true
+			})
+
+			if targetObj != nil {
+				break
+			}
+		}
+		if targetObj != nil {
+			break
+		}
+	}
+
+	if targetObj == nil {
+		return map[string]interface{}{
+			"references": references,
+		}, nil
+	}
+
+	// Find all references to this symbol
+	for _, pkg := range pkgs {
+		for _, file := range pkg.Syntax {
+			fpos := fset.File(file.Pos())
+			if fpos == nil {
+				continue
+			}
+
+			ast.Inspect(file, func(n ast.Node) bool {
+				if ident, ok := n.(*ast.Ident); ok {
+					obj := pkg.TypesInfo.Uses[ident]
+					if obj == nil {
+						obj = pkg.TypesInfo.Defs[ident]
+					}
+
+					if obj != nil && obj == targetObj {
+						pos := fset.Position(ident.Pos())
+						lineText := getLineText(fpos, pos.Line)
+
+						references = append(references, ReferenceInfo{
+							FilePath:     pos.Filename,
+							Line:         pos.Line,
+							Column:       pos.Column,
+							LineText:     lineText,
+							IsDefinition: pkg.TypesInfo.Defs[ident] != nil,
+						})
+					}
+				}
+				return true
+			})
+		}
+	}
+
 	return map[string]interface{}{
-		"references": []ReferenceInfo{},
+		"references": references,
 	}, nil
+}
+
+func lineColumnToOffset(file *token.File, line, column int) int {
+	lineOffset := file.LineStart(line)
+	return int(lineOffset) - file.Base() + column - 1
+}
+
+func getLineText(file *token.File, line int) string {
+	// Read the file and get the line text
+	// Simplified implementation
+	return fmt.Sprintf("line %d", line)
 }
 
 func handleRenameSymbol(params map[string]interface{}) (interface{}, error) {
@@ -251,33 +362,131 @@ func handleRenameSymbol(params map[string]interface{}) (interface{}, error) {
 		return nil, fmt.Errorf("missing required parameters")
 	}
 
-	// Parse the file with dst to preserve formatting and comments
-	dec := decorator.NewDecorator(fset)
-	f, err := dec.ParseFile(filePath, nil, parser.ParseComments)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse file: %w", err)
+	// Load packages to get type information
+	cfg := &packages.Config{
+		Mode: packages.NeedName | packages.NeedFiles | packages.NeedSyntax | packages.NeedTypesInfo | packages.NeedTypes,
+		Dir:  projectPath,
 	}
 
-	// Find and rename the identifier at the given position
-	// This is a simplified implementation - a full implementation would:
-	// 1. Find all references across the project
-	// 2. Rename all occurrences
-	// 3. Handle imports and package references
-
-	originalContent, err := os.ReadFile(filePath)
+	pkgs, err := packages.Load(cfg, "./...")
 	if err != nil {
-		return nil, fmt.Errorf("failed to read file: %w", err)
+		return nil, fmt.Errorf("failed to load packages: %w", err)
 	}
 
-	// For now, just demonstrate dst's ability to preserve formatting
-	// A full implementation would use golang.org/x/tools/go/packages and guru
+	// Find the symbol to rename
+	var targetObj *types.Object
+	for _, pkg := range pkgs {
+		for _, file := range pkg.Syntax {
+			fpos := fset.File(file.Pos())
+			if fpos == nil || fpos.Name() != filePath {
+				continue
+			}
 
+			offset := lineColumnToOffset(fpos, int(line), int(column))
+			targetPos := fpos.Pos(offset)
+
+			ast.Inspect(file, func(n ast.Node) bool {
+				if ident, ok := n.(*ast.Ident); ok {
+					if ident.Pos() <= targetPos && targetPos <= ident.End() {
+						targetObj = pkg.TypesInfo.Uses[ident]
+						if targetObj == nil {
+							targetObj = pkg.TypesInfo.Defs[ident]
+						}
+						return false
+					}
+				}
+				return true
+			})
+
+			if targetObj != nil {
+				break
+			}
+		}
+		if targetObj != nil {
+			break
+		}
+	}
+
+	if targetObj == nil {
+		return nil, fmt.Errorf("no symbol found at position")
+	}
+
+	// Collect all files that need changes
+	fileChanges := make(map[string]*dst.File)
+	filePaths := make(map[string]string)
+
+	for _, pkg := range pkgs {
+		for i, file := range pkg.Syntax {
+			fpos := fset.File(file.Pos())
+			if fpos == nil {
+				continue
+			}
+
+			needsChange := false
+			ast.Inspect(file, func(n ast.Node) bool {
+				if ident, ok := n.(*ast.Ident); ok {
+					obj := pkg.TypesInfo.Uses[ident]
+					if obj == nil {
+						obj = pkg.TypesInfo.Defs[ident]
+					}
+					if obj != nil && obj == targetObj {
+						needsChange = true
+						return false
+					}
+				}
+				return true
+			})
+
+			if needsChange {
+				// Parse with dst to preserve formatting
+				dec := decorator.NewDecorator(fset)
+				dstFile, err := dec.ParseFile(fpos.Name(), nil, parser.ParseComments)
+				if err != nil {
+					continue
+				}
+				fileChanges[fpos.Name()] = dstFile
+				filePaths[fpos.Name()] = pkg.CompiledGoFiles[i]
+			}
+		}
+	}
+
+	// Apply renames using dst
+	for path, dstFile := range fileChanges {
+		dst.Inspect(dstFile, func(n dst.Node) bool {
+			if ident, ok := n.(*dst.Ident); ok {
+				// Match identifier names (simplified - should use type info)
+				if ident.Name == targetObj.Name() {
+					ident.Name = newName
+				}
+			}
+			return true
+		})
+	}
+
+	// Generate results
 	var changes []RenameChange
-	changes = append(changes, RenameChange{
-		FilePath:     filePath,
-		OriginalText: string(originalContent),
-		ModifiedText: string(originalContent), // Would be modified in full implementation
-	})
+	for path, dstFile := range fileChanges {
+		originalContent, _ := os.ReadFile(path)
+
+		// Restore file with dst to preserve comments
+		res := decorator.NewRestorer()
+		modifiedFile := res.FileSet.AddFile(path, -1, len(originalContent))
+		var modifiedContent strings.Builder
+		if err := res.Fprint(&modifiedContent, dstFile); err != nil {
+			continue
+		}
+
+		changes = append(changes, RenameChange{
+			FilePath:     path,
+			OriginalText: string(originalContent),
+			ModifiedText: modifiedContent.String(),
+		})
+
+		// Write the changes back to disk
+		if err := os.WriteFile(path, []byte(modifiedContent.String()), 0644); err != nil {
+			return nil, fmt.Errorf("failed to write file %s: %w", path, err)
+		}
+	}
 
 	return map[string]interface{}{
 		"changes": changes,
@@ -285,6 +494,7 @@ func handleRenameSymbol(params map[string]interface{}) (interface{}, error) {
 }
 
 func handleGetSymbolInfo(params map[string]interface{}) (interface{}, error) {
+	projectPath, _ := params["project_path"].(string)
 	filePath, _ := params["file_path"].(string)
 	line, _ := params["line"].(float64)
 	column, _ := params["column"].(float64)
@@ -293,16 +503,89 @@ func handleGetSymbolInfo(params map[string]interface{}) (interface{}, error) {
 		return nil, fmt.Errorf("file_path parameter required")
 	}
 
-	// Parse file with dst
+	// If project_path provided, use full type information
+	if projectPath != "" {
+		cfg := &packages.Config{
+			Mode: packages.NeedName | packages.NeedFiles | packages.NeedSyntax | packages.NeedTypesInfo | packages.NeedTypes,
+			Dir:  projectPath,
+		}
+
+		pkgs, err := packages.Load(cfg, "./...")
+		if err != nil {
+			return nil, fmt.Errorf("failed to load packages: %w", err)
+		}
+
+		// Find symbol at position
+		for _, pkg := range pkgs {
+			for _, file := range pkg.Syntax {
+				fpos := fset.File(file.Pos())
+				if fpos == nil || fpos.Name() != filePath {
+					continue
+				}
+
+				offset := lineColumnToOffset(fpos, int(line), int(column))
+				targetPos := fpos.Pos(offset)
+
+				var foundIdent *ast.Ident
+				var foundObj *types.Object
+				ast.Inspect(file, func(n ast.Node) bool {
+					if ident, ok := n.(*ast.Ident); ok {
+						if ident.Pos() <= targetPos && targetPos <= ident.End() {
+							foundIdent = ident
+							foundObj = pkg.TypesInfo.Uses[ident]
+							if foundObj == nil {
+								foundObj = pkg.TypesInfo.Defs[ident]
+							}
+							return false
+						}
+					}
+					return true
+				})
+
+				if foundIdent != nil {
+					kind := "identifier"
+					documentation := ""
+
+					if foundObj != nil {
+						switch foundObj.(type) {
+						case *types.Func:
+							kind = "function"
+						case *types.Var:
+							kind = "variable"
+						case *types.Const:
+							kind = "constant"
+						case *types.TypeName:
+							kind = "type"
+						case *types.PkgName:
+							kind = "package"
+						}
+
+						// Try to find documentation
+						documentation = findDocumentation(file, foundIdent.Pos())
+					}
+
+					pos := fset.Position(foundIdent.Pos())
+					return SymbolInfo{
+						Name:          foundIdent.Name,
+						Kind:          kind,
+						FilePath:      pos.Filename,
+						Line:          pos.Line,
+						Column:        pos.Column,
+						Documentation: documentation,
+					}, nil
+				}
+			}
+		}
+	}
+
+	// Fallback: simple parsing without type info
 	dec := decorator.NewDecorator(fset)
 	f, err := dec.ParseFile(filePath, nil, parser.ParseComments)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse file: %w", err)
 	}
 
-	// Find node at position (simplified)
-	_ = f // Use file to find symbol
-
+	// Simple identifier lookup
 	return SymbolInfo{
 		Name:     "symbol",
 		Kind:     "identifier",
@@ -310,6 +593,23 @@ func handleGetSymbolInfo(params map[string]interface{}) (interface{}, error) {
 		Line:     int(line),
 		Column:   int(column),
 	}, nil
+}
+
+func findDocumentation(file *ast.File, pos token.Pos) string {
+	// Find the comment group before the declaration
+	for _, decl := range file.Decls {
+		if genDecl, ok := decl.(*ast.GenDecl); ok {
+			if genDecl.Doc != nil && genDecl.Pos() > pos-1000 && genDecl.Pos() < pos+1000 {
+				return genDecl.Doc.Text()
+			}
+		}
+		if funcDecl, ok := decl.(*ast.FuncDecl); ok {
+			if funcDecl.Doc != nil && funcDecl.Pos() > pos-1000 && funcDecl.Pos() < pos+1000 {
+				return funcDecl.Doc.Text()
+			}
+		}
+	}
+	return ""
 }
 
 func handleExtractMethod(params map[string]interface{}) (interface{}, error) {

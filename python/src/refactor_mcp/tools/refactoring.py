@@ -14,6 +14,7 @@ from fastmcp import FastMCP
 from ..clients.lsp import LspError
 from ..clients.ts_morph import TsMorphError
 from ..clients.rope_client import RopeError
+from ..clients.go_dst_client import GoDstError
 from ..models import AppContext, Language
 from ..utils.security import SecurityError
 
@@ -194,6 +195,25 @@ def register_refactoring_tools(mcp: FastMCP) -> None:
                     "locations_modified": result.locations_modified,
                     "error": result.error,
                 }
+            elif lang == Language.GO:
+                # Use Go dst for Go (subprocess with comment preservation!)
+                if not ctx.go_dst_client:
+                    return {"success": False, "error": "Go dst client not available"}
+
+                result = await ctx.go_dst_client.rename_symbol(
+                    project_path, str(validated_file), line, column, new_name
+                )
+
+                return {
+                    "success": result.success,
+                    "symbol_name": "unknown",  # Go dst doesn't return old name yet
+                    "new_name": new_name,
+                    "files_modified": len(result.file_changes),
+                    "locations_modified": sum(
+                        change["new_text"].count(new_name) for change in result.file_changes.values()
+                    ),
+                    "error": result.message if not result.success else None,
+                }
             else:
                 # Use LSP for other languages
                 client = await ctx.lsp_pool.get_client(lang, Path(project_path).parent)
@@ -220,6 +240,9 @@ def register_refactoring_tools(mcp: FastMCP) -> None:
         except RopeError as e:
             logger.error(f"Rope error in rename: {e}")
             return {"success": False, "error": f"Python refactoring error: {e.message}"}
+        except GoDstError as e:
+            logger.error(f"Go dst error in rename: {e}")
+            return {"success": False, "error": f"Go refactoring error: {e.message}"}
         except Exception as e:
             logger.error(f"Error in rename: {e}")
             return {"success": False, "error": str(e)}
@@ -301,6 +324,28 @@ def register_refactoring_tools(mcp: FastMCP) -> None:
                 from ..models.refactoring import ReferencesInfo, ReferenceLocation
                 result = ReferencesInfo(
                     symbol_name="symbol",
+                    reference_count=len(references),
+                    references=[
+                        ReferenceLocation(
+                            file_path=ref.file_path,
+                            line=ref.line,
+                            column=ref.column,
+                            preview=ref.line_text
+                        )
+                        for ref in references
+                    ]
+                )
+            elif lang == Language.GO:
+                if not ctx.go_dst_client:
+                    return {"success": False, "error": "Go dst client not available"}
+
+                references = await ctx.go_dst_client.find_references(
+                    project_path, str(validated_file), line, column
+                )
+                # Convert to expected format
+                from ..models.refactoring import ReferencesInfo, ReferenceLocation
+                result = ReferencesInfo(
+                    symbol_name="symbol",  # Go dst doesn't return symbol name separately
                     reference_count=len(references),
                     references=[
                         ReferenceLocation(
@@ -404,6 +449,13 @@ def register_refactoring_tools(mcp: FastMCP) -> None:
                 offset = _line_column_to_offset(validated_file, line, column)
                 result = await ctx.rope_client.get_symbol_info(
                     project_path, str(validated_file), offset
+                )
+            elif lang == Language.GO:
+                if not ctx.go_dst_client:
+                    return {"success": False, "error": "Go dst client not available"}
+
+                result = await ctx.go_dst_client.get_symbol_info(
+                    project_path, str(validated_file), line, column
                 )
             else:
                 client = await ctx.lsp_pool.get_client(lang, Path(project_path).parent)

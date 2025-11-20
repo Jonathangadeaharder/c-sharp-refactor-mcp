@@ -18,6 +18,7 @@ from .clients.lsp_pool import LspClientPool
 from .clients.roslyn import RoslynClient
 from .clients.ts_morph import TsMorphClient, TsMorphError
 from .clients.rope_client import RopeClient, RopeError
+from .clients.go_dst_client import GoDstClient, GoDstError
 from .config import Config
 from .models import AppContext
 from .tools.refactoring import register_refactoring_tools
@@ -87,6 +88,17 @@ async def lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
             "Install with: pip install rope"
         )
 
+    # Initialize Go dst client
+    go_dst_client: GoDstClient | None = None
+    try:
+        go_dst_client = GoDstClient()
+        logger.info("Go dst client initialized for Go refactoring")
+    except GoDstError as e:
+        logger.warning(
+            f"Go dst CLI not found: {e.message}. Go native refactoring will be unavailable. "
+            "Run: cd python/go_dst_cli && ./build.sh"
+        )
+
     # Create application context
     ctx = AppContext(
         config=config,
@@ -96,6 +108,7 @@ async def lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
         roslyn_client=roslyn_client,
         ts_morph_client=ts_morph_client,
         rope_client=rope_client,
+        go_dst_client=go_dst_client,
     )
 
     logger.info("Server started successfully")
