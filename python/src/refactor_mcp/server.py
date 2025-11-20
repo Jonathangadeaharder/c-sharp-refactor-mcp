@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 
 from .clients.lsp_pool import LspClientPool
 from .clients.roslyn import RoslynClient
+from .clients.ts_morph import TsMorphClient, TsMorphError
 from .config import Config
 from .models import AppContext
 from .tools.refactoring import register_refactoring_tools
@@ -63,6 +64,17 @@ async def lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
             "Roslyn CLI path not configured. C#/VB.NET refactoring will be unavailable."
         )
 
+    # Initialize TypeScript ts-morph client
+    ts_morph_client: TsMorphClient | None = None
+    try:
+        ts_morph_client = TsMorphClient()
+        logger.info("ts-morph client initialized for TypeScript refactoring")
+    except TsMorphError as e:
+        logger.warning(
+            f"ts-morph CLI not found: {e.message}. TypeScript native refactoring will be unavailable. "
+            "Run: cd python/ts_morph_cli && ./build.sh"
+        )
+
     # Create application context
     ctx = AppContext(
         config=config,
@@ -70,6 +82,7 @@ async def lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
         security=security,
         lsp_pool=lsp_pool,
         roslyn_client=roslyn_client,
+        ts_morph_client=ts_morph_client,
     )
 
     logger.info("Server started successfully")

@@ -206,6 +206,7 @@ class AppContext:
     security: "PathSecurityService"  # Forward reference
     lsp_pool: "LspClientPool"  # Forward reference
     roslyn_client: "RoslynClient | None"  # Forward reference
+    ts_morph_client: "TsMorphClient | None"  # Forward reference
 
 
 # Forward references for type hints (actual imports avoided for circular dependencies)
@@ -217,3 +218,4 @@ if TYPE_CHECKING:
     from .utils.security import PathSecurityService
     from .clients.lsp import LspClientPool
     from .clients.roslyn import RoslynClient
+    from .clients.ts_morph import TsMorphClient

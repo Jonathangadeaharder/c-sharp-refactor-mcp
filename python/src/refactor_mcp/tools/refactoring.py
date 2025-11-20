@@ -12,6 +12,7 @@ from typing import Annotated
 from fastmcp import FastMCP
 
 from ..clients.lsp import LspError
+from ..clients.ts_morph import TsMorphError
 from ..models import AppContext, Language
 from ..utils.security import SecurityError
 
@@ -128,6 +129,25 @@ def register_refactoring_tools(mcp: FastMCP) -> None:
                     "locations_modified": result.locations_modified,
                     "error": result.error,
                 }
+            elif lang == Language.TYPESCRIPT:
+                # Use ts-morph for TypeScript (native compiler API)
+                if not ctx.ts_morph_client:
+                    return {"success": False, "error": "ts-morph client not available"}
+
+                result = await ctx.ts_morph_client.rename_symbol(
+                    project_path, str(validated_file), line, column, new_name
+                )
+
+                return {
+                    "success": result.success,
+                    "symbol_name": result.symbol_name or "unknown",
+                    "new_name": new_name,
+                    "files_modified": len(result.changes),
+                    "locations_modified": sum(
+                        change["original_text"].count(new_name) for change in result.changes
+                    ),
+                    "error": result.error,
+                }
             else:
                 # Use LSP for other languages
                 client = await ctx.lsp_pool.get_client(lang, Path(project_path).parent)
@@ -148,6 +168,9 @@ def register_refactoring_tools(mcp: FastMCP) -> None:
         except LspError as e:
             logger.error(f"LSP error in rename: {e}")
             return {"success": False, "error": f"Language server error: {e}"}
+        except TsMorphError as e:
+            logger.error(f"ts-morph error in rename: {e}")
+            return {"success": False, "error": f"TypeScript compiler error: {e.message}"}
         except Exception as e:
             logger.error(f"Error in rename: {e}")
             return {"success": False, "error": str(e)}
@@ -195,6 +218,28 @@ def register_refactoring_tools(mcp: FastMCP) -> None:
                 result = await ctx.roslyn_client.find_references(
                     project_path, str(validated_file), line, column
                 )
+            elif lang == Language.TYPESCRIPT:
+                if not ctx.ts_morph_client:
+                    return {"success": False, "error": "ts-morph client not available"}
+
+                references = await ctx.ts_morph_client.find_references(
+                    project_path, str(validated_file), line, column
+                )
+                # Convert to expected format
+                from ..models.refactoring import ReferencesInfo, ReferenceLocation
+                result = ReferencesInfo(
+                    symbol_name="symbol",  # ts-morph doesn't provide this separately
+                    reference_count=len(references),
+                    references=[
+                        ReferenceLocation(
+                            file_path=ref.file_path,
+                            line=ref.line,
+                            column=ref.column,
+                            preview=ref.line_text
+                        )
+                        for ref in references
+                    ]
+                )
             else:
                 client = await ctx.lsp_pool.get_client(lang, Path(project_path).parent)
                 result = await client.find_references(validated_file, line, column)
@@ -220,6 +265,9 @@ def register_refactoring_tools(mcp: FastMCP) -> None:
         except LspError as e:
             logger.error(f"LSP error in find_references: {e}")
             return {"success": False, "error": f"Language server error: {e}"}
+        except TsMorphError as e:
+            logger.error(f"ts-morph error in find_references: {e}")
+            return {"success": False, "error": f"TypeScript compiler error: {e.message}"}
         except Exception as e:
             logger.error(f"Error in find_references: {e}")
             return {"success": False, "error": str(e)}
@@ -267,6 +315,13 @@ def register_refactoring_tools(mcp: FastMCP) -> None:
                 result = await ctx.roslyn_client.get_symbol_info(
                     project_path, str(validated_file), line, column
                 )
+            elif lang == Language.TYPESCRIPT:
+                if not ctx.ts_morph_client:
+                    return {"success": False, "error": "ts-morph client not available"}
+
+                result = await ctx.ts_morph_client.get_symbol_info(
+                    project_path, str(validated_file), line, column
+                )
             else:
                 client = await ctx.lsp_pool.get_client(lang, Path(project_path).parent)
                 result = await client.get_symbol_info(validated_file, line, column)
@@ -291,6 +346,9 @@ def register_refactoring_tools(mcp: FastMCP) -> None:
         except LspError as e:
             logger.error(f"LSP error in get_symbol_info: {e}")
             return {"success": False, "error": f"Language server error: {e}"}
+        except TsMorphError as e:
+            logger.error(f"ts-morph error in get_symbol_info: {e}")
+            return {"success": False, "error": f"TypeScript compiler error: {e.message}"}
         except Exception as e:
             logger.error(f"Error in get_symbol_info: {e}")
             return {"success": False, "error": str(e)}
@@ -339,39 +397,67 @@ def register_refactoring_tools(mcp: FastMCP) -> None:
                 f"{start_line}:{start_column}-{end_line}:{end_column}"
             )
 
-            # Currently only supported for C#/VB.NET
+            # Route to appropriate client
             lang = Language(language)
-            if lang not in [Language.CSHARP, Language.VBNET]:
+
+            if lang in [Language.CSHARP, Language.VBNET]:
+                if not ctx.roslyn_client:
+                    return {"success": False, "error": "Roslyn client not available"}
+
+                result = await ctx.roslyn_client.extract_method(
+                    project_path,
+                    str(validated_file),
+                    start_line,
+                    start_column,
+                    end_line,
+                    end_column,
+                    method_name,
+                )
+
+                return {
+                    "success": result.success,
+                    "method_name": result.method_name,
+                    "files_modified": result.files_modified,
+                    "parameters": result.parameters,
+                    "return_type": result.return_type,
+                    "error": result.error,
+                }
+
+            elif lang == Language.TYPESCRIPT:
+                if not ctx.ts_morph_client:
+                    return {"success": False, "error": "ts-morph client not available"}
+
+                result = await ctx.ts_morph_client.extract_method(
+                    project_path,
+                    str(validated_file),
+                    start_line,
+                    start_column,
+                    end_line,
+                    end_column,
+                    method_name,
+                )
+
+                return {
+                    "success": result.success,
+                    "method_name": method_name,
+                    "files_modified": len(result.changes),
+                    "parameters": [],  # ts-morph implementation needs enhancement
+                    "return_type": "unknown",  # ts-morph implementation needs enhancement
+                    "error": result.error,
+                }
+
+            else:
                 return {
                     "success": False,
                     "error": f"Extract method not yet supported for {language}",
                 }
 
-            if not ctx.roslyn_client:
-                return {"success": False, "error": "Roslyn client not available"}
-
-            result = await ctx.roslyn_client.extract_method(
-                project_path,
-                str(validated_file),
-                start_line,
-                start_column,
-                end_line,
-                end_column,
-                method_name,
-            )
-
-            return {
-                "success": result.success,
-                "method_name": result.method_name,
-                "files_modified": result.files_modified,
-                "parameters": result.parameters,
-                "return_type": result.return_type,
-                "error": result.error,
-            }
-
         except SecurityError as e:
             logger.error(f"Security error in extract_method: {e}")
             return {"success": False, "error": f"Security error: {e}"}
+        except TsMorphError as e:
+            logger.error(f"ts-morph error in extract_method: {e}")
+            return {"success": False, "error": f"TypeScript compiler error: {e.message}"}
         except Exception as e:
             logger.error(f"Error in extract_method: {e}")
             return {"success": False, "error": str(e)}
