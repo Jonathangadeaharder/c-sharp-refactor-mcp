@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  refactor-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: refactor-mcp:latest
+    container_name: refactor-mcp
+
+    # Environment variables
+    environment:
+      - REFACTOR_MCP_ALLOWED_ROOT_PATHS=/workspace
+      - REFACTOR_MCP_LOG_LEVEL=INFO
+      - REFACTOR_MCP_CACHE_MAX_SIZE_MB=4096
+      - REFACTOR_MCP_RATE_LIMIT_ENABLED=true
+      - REFACTOR_MCP_ENABLE_METRICS=true
+      # Add OAuth credentials if needed
+      # - REFACTOR_MCP_GITHUB_CLIENT_ID=your_client_id
+      # - REFACTOR_MCP_GITHUB_CLIENT_SECRET=your_secret
+
+    # Mount workspace for file access
+    volumes:
+      - ./workspace:/workspace:rw
+      # Optional: mount .env file
+      # - ./.env:/app/.env:ro
+
+    # Port mapping for SSE transport
+    ports:
+      - "8000:8000"
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+    # Restart policy
+    restart: unless-stopped
+
+    # Override default command for SSE transport
+    # command: ["python", "-m", "refactor_mcp.cli", "--transport", "sse", "--port", "8000"]
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "from refactor_mcp.config import Config; Config.load()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+    # Logging
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Optional: Add language server containers for LSP support
+  typescript-lsp:
+    image: node:18-slim
+    container_name: typescript-lsp
+    command: ["npx", "typescript-language-server", "--stdio"]
+    restart: unless-stopped
+    profiles:
+      - lsp-servers
+
+  python-lsp:
+    image: python:3.11-slim
+    container_name: python-lsp
+    command: ["sh", "-c", "pip install pyright && pyright-langserver --stdio"]
+    restart: unless-stopped
+    profiles:
+      - lsp-servers
+
+networks:
+  default:
+    name: refactor-mcp-network
+
+volumes:
+  workspace:
+    driver: local
